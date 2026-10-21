@@ -1,0 +1,14 @@
+# ⚠ Données personnelles : aucun export ne doit être poussé sur GitHub
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+~$*
+exports/
+données/
+donnees/
+
+# Divers
+.DS_Store
+Thumbs.db
+node_modules/
