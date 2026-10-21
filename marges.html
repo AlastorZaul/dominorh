@@ -153,6 +153,13 @@ code{font:12px ui-monospace,Menlo,Consolas,monospace;word-break:break-all}
   .track{height:12px}
   .groups{grid-template-columns:repeat(3,1fr)}
 }
+
+.chip .del{border:0;background:none;padding:0 2px 0 4px;margin-left:2px;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;border-radius:6px}
+.chip .del:hover{color:var(--text);background:var(--border)}
+.chip .del.armed{color:#fff;background:#c23a39;font-size:11.5px;font-weight:600;padding:2px 7px}
+.delmsg{font-size:13px;margin-top:6px}
+.delmsg:empty{display:none}
+.delmsg.ok{color:#14865d}.delmsg.err{color:#c23a39;font-weight:600}.delmsg.busy{color:#b25e00}
 </style>
 </head>
 <body>
@@ -229,6 +236,7 @@ code{font:12px ui-monospace,Menlo,Consolas,monospace;word-break:break-all}
 </div>
 <div class="tip" id="tip"></div>
 
+<script src="file-delete.js"></script>
 <script>
 /* =================== état & utilitaires =================== */
 const $ = id => document.getElementById(id);
@@ -407,7 +415,7 @@ function render(){
   fillSelect($('fGC'), uniqSorted(filtered('gc'), r=>r.gc), F.gc, 'Tous');
 
   const all = allRows();
-  $('files').innerHTML = datasets.length ? datasets.map(d=>`<span class="chip ${d.error && !d.skip?'err':''}" title="${esc(d.error||'')}">${esc(d.name)} <span class="muted">(${d.error ? (d.skip?'ignoré : ':'⚠ ')+esc(d.error) : d.rows.length+' lignes'})</span></span>`).join('')
+  $('files').innerHTML = datasets.length ? datasets.map(d=>`<span class="chip ${d.error && !d.skip?'err':''}" title="${esc(d.error||'')}">${esc(d.name)} <span class="muted">(${d.error ? (d.skip?'ignoré : ':'⚠ ')+esc(d.error) : d.rows.length+' lignes'})</span>${delBtn(d.name)}</span>`).join('')
     : `<span class="muted">${(dirHandle||snapshotFiles)?'Aucun export CSV de marges dans ce dossier pour l\'instant.':'Aucun fichier. Choisis le dossier des exports ou ajoute un CSV.'}</span>`;
   const ms = uniqSorted(all, r=>r.mois);
   $('subtitle').textContent = all.length ? `${datasets.filter(d=>d.rows.length).length} fichier(s) · ${nf0.format(all.length)} lignes · ${ms.map(moisLabel).join(', ')}` : 'Reporting par dossier, par commercial et par agence';
@@ -579,7 +587,7 @@ async function kvGet(k){ try{ const db = await idb(); return await new Promise((
 async function listFolder(dir, prefix='', out=[]){
   for await (const [name, h] of dir.entries()){
     if (name.startsWith('~$') || name.startsWith('.')) continue;
-    if (h.kind === 'directory') await listFolder(h, prefix+name+'/', out);
+    if (h.kind === 'directory'){ if (!name.startsWith('_')) await listFolder(h, prefix+name+'/', out); continue; }   // _corbeille, _sauvegardes : ignorés
     else if (EXT.test(name)) out.push({name: prefix+name, handle: h});
   }
   return out;

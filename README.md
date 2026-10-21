@@ -66,6 +66,14 @@ Lit le planning Excel de l'agence (ex. `Planning_agence_DAX.xlsx`) : chaque **on
   - Avec un dossier **SharePoint synchronisé par OneDrive**, la modification est synchronisée et apparaît chez les collègues qui surveillent le même dossier. Éviter d'éditer en même temps dans Excel et dans la page (OneDrive créerait une copie en conflit).
   - Ajouter ou supprimer un intérimaire / un client se fait toujours dans Excel.
 
+## Retirer un fichier
+
+Dans **Actions commerciales** et **Marges & ETP**, chaque fichier de la liste a un bouton **×** : un 1er clic demande confirmation (« Supprimer ? »), un 2e clic retire le fichier.
+
+- Fichier du dossier surveillé : il est **déplacé dans le sous-dossier `_corbeille`** (nom suffixé de la date), pas effacé définitivement — pour le récupérer, le remettre à la main dans le dossier. Le navigateur demande une fois l'autorisation de modifier le dossier.
+- Fichier ajouté ponctuellement : il est simplement retiré de la page (l'original n'est pas touché).
+- Les sous-dossiers commençant par `_` (`_corbeille`, `_sauvegardes`) sont ignorés par les outils.
+
 ## Confidentialité
 
 - **Les exports ne quittent jamais le poste.** Ils sont lus directement par le navigateur ; GitHub ne sert que la page, vide de toute donnée.
@@ -95,6 +103,7 @@ Télécharger le dépôt (**Code → Download ZIP**), le dézipper et ouvrir `in
 index.html                  l'application (HTML + CSS + JS, sans build)
 export-pptx.js              génération de la présentation PowerPoint (actions)
 marges.html                 l'outil Marges & ETP
+file-delete.js              retrait d'un fichier (vers _corbeille), commun aux deux premiers outils
 planning.html               l'outil Planning
 export-marges-pptx.js       génération de la présentation PowerPoint (marges)
 vendor/xlsx.full.min.js     SheetJS Community Edition 0.18.5 (lecture des fichiers Excel, licence Apache-2.0)

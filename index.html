@@ -168,6 +168,13 @@ code{font:12px ui-monospace,Menlo,Consolas,monospace;word-break:break-all}
 .chip.err{border-color:#e34948;color:#e34948}
 table.det td{white-space:normal;vertical-align:top}
 table.det td:last-child{min-width:200px}
+
+.chip .del{border:0;background:none;padding:0 2px 0 4px;margin-left:2px;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;border-radius:6px}
+.chip .del:hover{color:var(--text);background:var(--border)}
+.chip .del.armed{color:#fff;background:#c23a39;font-size:11.5px;font-weight:600;padding:2px 7px}
+.delmsg{font-size:13px;margin-top:6px}
+.delmsg:empty{display:none}
+.delmsg.ok{color:#14865d}.delmsg.err{color:#c23a39;font-weight:600}.delmsg.busy{color:#b25e00}
 </style>
 </head>
 <body>
@@ -280,6 +287,7 @@ table.det td:last-child{min-width:200px}
 <div class="tip" id="tip"></div>
 
 <script src="vendor/xlsx.full.min.js"></script>
+<script src="file-delete.js"></script>
 <script src="vendor/pptxgen.bundle.js"></script>
 <script>
 
@@ -400,7 +408,7 @@ async function kvGet(k){ try{ const db = await idb(); return await new Promise((
 async function listFolder(dir, prefix='', out=[]){
   for await (const [name, h] of dir.entries()){
     if (name.startsWith('~$') || name.startsWith('.')) continue;
-    if (h.kind === 'directory') await listFolder(h, prefix+name+'/', out);
+    if (h.kind === 'directory'){ if (!name.startsWith('_')) await listFolder(h, prefix+name+'/', out); continue; }   // _corbeille, _sauvegardes : ignorés
     else if (EXT.test(name)) out.push({name: prefix+name, handle: h});
   }
   return out;
@@ -577,7 +585,7 @@ function render(){
   fillSelect($('fYear'),   uniq(filtered('year'),'annee'), F.year, 'Toutes');
   fillWeekSelect($('fWeek'), uniq(filtered('week'),'semaine').reverse(), F.week);
 
-  $('files').innerHTML = datasets.length ? datasets.map(d=>`<span class="chip ${d.error?'err':''} ${fresh.has(d.name)&&!d.error?'new':''}" style="padding-right:10px" title="${esc(d.error||'')}">${d.week?`<b class="wk ${d.week.src==='date'?'guess':''}" title="${d.week.src==='date'?'Semaine déduite de la date d\'enregistrement du fichier. Pour la fixer, mets-la dans le nom (ex. « Export S42.xlsx » ou « Export 2026-10-19.xlsx »).':'Semaine lue dans le nom du fichier'}">${esc(weekLabel(d.week.key))}${d.week.src==='date'?' ?':''}</b> `:''}${esc(d.name)} <span class="muted">(${d.error?'⚠ '+esc(d.error):fmt(sum(d.rows))+' actions'})</span></span>`).join('') : `<span class="muted">${(typeof dirHandle!=='undefined'&&(dirHandle||snapshotFiles))?'Aucun export Excel dans ce dossier pour l\'instant.':'Aucun dossier choisi.'}</span>`;
+  $('files').innerHTML = datasets.length ? datasets.map(d=>`<span class="chip ${d.error?'err':''} ${fresh.has(d.name)&&!d.error?'new':''}" style="padding-right:10px" title="${esc(d.error||'')}">${d.week?`<b class="wk ${d.week.src==='date'?'guess':''}" title="${d.week.src==='date'?'Semaine déduite de la date d\'enregistrement du fichier. Pour la fixer, mets-la dans le nom (ex. « Export S42.xlsx » ou « Export 2026-10-19.xlsx »).':'Semaine lue dans le nom du fichier'}">${esc(weekLabel(d.week.key))}${d.week.src==='date'?' ?':''}</b> `:''}${esc(d.name)} <span class="muted">(${d.error?'⚠ '+esc(d.error):fmt(sum(d.rows))+' actions'})</span>${delBtn(d.name)}</span>`).join('') : `<span class="muted">${(typeof dirHandle!=='undefined'&&(dirHandle||snapshotFiles))?'Aucun export Excel dans ce dossier pour l\'instant.':'Aucun dossier choisi.'}</span>`;
   fresh = new Set();
   updateSubtitle();
 
