@@ -112,6 +112,9 @@ tbody tr.sel td{background:var(--surface-2);font-weight:600}
 .tabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
 .tabs button.on{background:var(--text);color:var(--surface);border-color:var(--text)}
 .muted{color:var(--muted)}
+nav.tabsnav{display:flex;gap:4px;margin-bottom:8px}
+nav.tabsnav a{font-size:13px;color:var(--text-2);text-decoration:none;padding:4px 10px;border-radius:999px;border:1px solid var(--border)}
+nav.tabsnav a.on{background:var(--text);color:var(--surface);border-color:var(--text)}
 .weeks{display:flex;align-items:flex-end;gap:6px;height:190px;padding-top:6px}
 .wcol{flex:1 1 0;max-width:72px;min-width:0;height:100%;display:flex;flex-direction:column;cursor:pointer}
 .wplot{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-end}
@@ -169,6 +172,7 @@ table.det td:last-child{min-width:200px}
 </head>
 <body>
 <div class="wrap">
+  <nav class="tabsnav"><a href="index.html" class="on">Actions commerciales</a><a href="marges.html">Marges &amp; ETP</a></nav>
   <header class="top">
     <div>
       <h1>Statistiques commerciales</h1>

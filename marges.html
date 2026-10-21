@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Marges et ETP</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='1' y='2' width='10' height='3' rx='1' fill='%23c3c2b7'/><rect x='11' y='2' width='4' height='3' rx='1' fill='%231baf7a'/><rect x='1' y='7' width='7' height='3' rx='1' fill='%23c3c2b7'/><rect x='8' y='7' width='3' height='3' rx='1' fill='%231baf7a'/><rect x='1' y='12' width='5' height='3' rx='1' fill='%23c3c2b7'/><rect x='6' y='12' width='2' height='3' rx='1' fill='%231baf7a'/></svg>">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f4f3f0; --surface:#fcfcfb; --surface-2:#f0efec; --border:#e2e0da; --grid:#ebe9e4;
+  --text:#0b0b0b; --text-2:#52514e; --muted:#85837d;
+  --accent:#2a78d6; --bar:#2a78d6; --cost:#c9c7bf; --marge:#1baf7a; --neg:#e34948;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#121211; --surface:#1a1a19; --surface-2:#232321; --border:#2f2f2c; --grid:#2a2a28;
+    --text:#f0efec; --text-2:#c3c2b7; --muted:#8d8c84;
+    --accent:#3987e5; --bar:#3987e5; --cost:#4a4945; --marge:#199e70; --neg:#e66767;
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#121211; --surface:#1a1a19; --surface-2:#232321; --border:#2f2f2c; --grid:#2a2a28;
+  --text:#f0efec; --text-2:#c3c2b7; --muted:#8d8c84;
+  --accent:#3987e5; --bar:#3987e5; --cost:#4a4945; --marge:#199e70; --neg:#e66767;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1280px;margin:0 auto;padding:20px 16px 60px}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-size:22px;margin:0;letter-spacing:-.01em}
+h2{font-size:15px;margin:0 0 2px}
+.sub{color:var(--text-2);font-size:13px}
+.muted{color:var(--muted)}
+nav.tabsnav{display:flex;gap:4px;margin-bottom:8px}
+nav.tabsnav a{font-size:13px;color:var(--text-2);text-decoration:none;padding:4px 10px;border-radius:999px;border:1px solid var(--border)}
+nav.tabsnav a.on{background:var(--text);color:var(--surface);border-color:var(--text)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow)}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+button,select,input{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px}
+button{cursor:pointer}
+button:hover{background:var(--surface-2)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.danger{color:var(--neg)}
+button:disabled{opacity:.5;cursor:default}
+select{min-width:120px;max-width:220px}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--text-2)}
+code{font:12px ui-monospace,Menlo,Consolas,monospace;word-break:break-all}
+.drop{border:1.5px dashed var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.drop.over{border-color:var(--accent);background:var(--surface-2)}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:3px 10px;font-size:12px}
+.chip.err{border-color:var(--neg);color:var(--neg)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block}
+.dot.ok{background:#1baf7a}.dot.ko{background:#e34948}
+.filters{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0;margin:8px 0}
+.filters .card{padding:10px 14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi .v{font-size:26px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi .l{color:var(--text-2);font-size:12px}
+.kpi .s{color:var(--muted);font-size:12px;margin-top:2px}
+.sec{margin-bottom:16px}
+.sec-h{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--text-2);flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--border);border-radius:8px;overflow:hidden;max-width:100%}
+.seg button{border:0;border-radius:0;padding:5px 10px;font-size:13px}
+.seg button+button{border-left:1px solid var(--border)}
+.seg button.on{background:var(--text);color:var(--surface)}
+/* barres + chiffres */
+.bt-head,.bt-row{display:grid;grid-template-columns:minmax(120px,1.3fr) minmax(120px,2.2fr) repeat(4,minmax(64px,.6fr));gap:10px;align-items:center}
+.bt-head{font-size:12px;color:var(--text-2);font-weight:600;padding:0 6px 6px;border-bottom:1px solid var(--grid)}
+.bt-head span.n,.bt-row .n{text-align:right;font-variant-numeric:tabular-nums}
+.bt-head span.sort{cursor:pointer;user-select:none}
+.bt-head span.sort:hover{color:var(--text)}
+.bt-row{padding:6px;border-bottom:1px solid var(--grid);border-radius:6px}
+.bt-row.click{cursor:pointer}
+.bt-row.click:hover{background:var(--surface-2)}
+.bt-row.sel{background:var(--surface-2)}
+.bt-row.sel .lbl{color:var(--accent);font-weight:600}
+.bt-row.tot{font-weight:650;border-bottom:0;border-top:1px solid var(--border)}
+.lbl{overflow-wrap:anywhere;font-size:13px}
+.lbl small{display:block;color:var(--muted);font-size:11.5px}
+.track{height:16px;position:relative}
+.fill{height:100%;display:flex;gap:2px;min-width:2px}
+.fill span{height:100%}
+.fill span:first-child{border-radius:4px 0 0 4px}.fill span:last-child{border-radius:0 4px 4px 0}.fill span:only-child{border-radius:4px}
+.n.neg{color:var(--neg)}
+.bt-row .n{font-size:13px}
+.more{text-align:center;margin-top:10px}
+/* agences */
+.groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.grp{cursor:pointer}
+.grp:hover{border-color:var(--accent)}
+.grp.sel{border-color:var(--accent);outline:1px solid var(--accent)}
+.grp .name{font-weight:650;font-size:16px}
+.grp .big{font-size:24px;font-weight:650;font-variant-numeric:tabular-nums}
+.grp dl{display:grid;grid-template-columns:1fr auto;gap:2px 10px;margin:8px 0 0;font-size:12.5px}
+.grp dt{color:var(--text-2)} .grp dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.grp .members{font-size:12px;color:var(--muted);margin-top:8px}
+.grp .acts{display:flex;gap:6px;margin-top:10px}
+.grp .acts button{font-size:12px;padding:3px 8px}
+.split{height:8px;display:flex;gap:2px;margin-top:8px}
+.split span:first-child{border-radius:4px 0 0 4px}.split span:last-child{border-radius:0 4px 4px 0}
+.editor{border:1px solid var(--accent);border-radius:12px;padding:14px;margin-bottom:12px;background:var(--surface)}
+.editor .checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px 14px;margin:10px 0}
+.editor label{display:flex;gap:6px;align-items:center;font-size:13px}
+.editor input[type=checkbox]{width:16px;height:16px;padding:0}
+.empty{color:var(--muted);padding:18px;text-align:center}
+.tip{position:fixed;pointer-events:none;background:var(--text);color:var(--surface);padding:7px 10px;border-radius:8px;font-size:12px;line-height:1.45;z-index:50;max-width:320px;opacity:0;transition:opacity .08s}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+@media (max-width:980px){.grid2{grid-template-columns:1fr}}
+.print-only{display:none}
+@media (max-width:760px){
+  .bt-head{display:none}
+  .bt-row{grid-template-columns:1fr 1fr 1fr 1fr;row-gap:4px}
+  .bt-row .lbl{grid-column:1/-1}
+  .bt-row .track{grid-column:1/-1}
+  .bt-row .n{text-align:left;font-size:12px}
+  .bt-row .n::before{content:attr(data-l)" ";color:var(--muted)}
+}
+/* ---------- impression / PDF ---------- */
+@page{size:A4 landscape;margin:12mm}
+@media print{
+  :root,:root[data-theme="dark"]{color-scheme:light;--bg:#fff;--surface:#fff;--surface-2:#f4f3f0;--border:#d9d7d0;--grid:#e9e7e2;--text:#0b0b0b;--text-2:#52514e;--muted:#85837d;--bar:#2a78d6;--cost:#c9c7bf;--marge:#1baf7a;--neg:#d03b3a;--shadow:none}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{font-size:11px}
+  .wrap{max-width:none;padding:0}
+  .no-print,.filters,nav.tabsnav,header.top .row,.tip,.more,.grp .acts,#editorBox{display:none!important}
+  .print-only{display:block}
+  .card{box-shadow:none;break-inside:avoid}
+  .sec,.grid2>section{break-inside:avoid}
+  .pb{break-before:page}
+  .grid2{display:block}
+  .grid2>section{break-inside:avoid;page-break-inside:avoid;margin-bottom:10px}
+  .grid2.pb{break-before:auto}
+  .kpis{grid-template-columns:repeat(4,1fr)}
+  .kpi .v{font-size:20px}
+  .bt-row{padding:2px 6px}
+  .lbl small{display:none}
+  .track{height:12px}
+  .groups{grid-template-columns:repeat(3,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="tabsnav no-print"><a href="index.html">Actions commerciales</a><a href="marges.html" class="on">Marges &amp; ETP</a></nav>
+  <header class="top">
+    <div>
+      <h1>Marges &amp; ETP</h1>
+      <div class="sub" id="subtitle">Reporting par dossier, par commercial et par agence</div>
+      <div class="print-only sub" id="printScope"></div>
+    </div>
+    <div class="row">
+      <button id="themeBtn">◐ Thème</button>
+      <button id="pdfBtn">Exporter en PDF</button>
+      <button id="pptxBtn" class="primary">Exporter en présentation (.pptx)</button>
+    </div>
+  </header>
+
+  <div class="drop card no-print" id="drop">
+    <div style="flex:1;min-width:240px">
+      <div class="row" style="gap:8px"><span class="dot" id="liveDot"></span><b>Exports de marges (CSV)</b> <code id="folder" class="muted">aucun dossier</code></div>
+      <div class="sub" id="liveTxt">Chargement…</div>
+      <div class="row" id="files" style="margin-top:8px;gap:6px"></div>
+    </div>
+    <div class="row" style="align-items:flex-end">
+      <label class="f">Base ETP (heures / mois)<input id="etpBase" type="number" step="0.001" min="1" style="width:130px"></label>
+      <label class="f">Commercial retenu<select id="attrib"><option value="contrat">Commercial du contrat</option><option value="client">Commercial du client</option></select></label>
+      <input type="file" id="fileInput" accept=".csv,text/csv" multiple hidden>
+      <input type="file" id="dirInput" webkitdirectory multiple hidden>
+      <button class="primary" id="reconnectBtn" hidden>Reprendre la surveillance</button>
+      <button class="primary" id="pickBtn">Choisir le dossier des exports</button>
+      <button id="refreshBtn" hidden>Actualiser</button>
+      <button id="addBtn">+ Fichier ponctuel</button>
+    </div>
+  </div>
+
+  <div class="filters">
+    <div class="card row">
+      <label class="f">Mois de paie<select id="fMois"></select></label>
+      <label class="f">Agence<select id="fGroupe"></select></label>
+      <label class="f">Commercial<select id="fCom"></select></label>
+      <label class="f">Dossier<select id="fDossier"></select></label>
+      <label class="f">Client<select id="fClient"></select></label>
+      <label class="f">Grand compte<select id="fGC"></select></label>
+      <button id="clearBtn" style="align-self:flex-end">Réinitialiser</button>
+    </div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <section class="sec" id="groupsSec">
+    <div class="sec-h">
+      <div><h2>Agences</h2><div class="sub">Une agence = l'addition de plusieurs commerciaux. Clique sur une agence pour filtrer.</div></div>
+      <div class="row no-print" style="gap:8px"><button id="autoGroups" title="Crée une agence par fichier importé, avec ses commerciaux">Créer une agence par fichier</button><button class="primary" id="newGroup">+ Nouvelle agence</button></div>
+    </div>
+    <div id="editorBox"></div>
+    <div class="groups" id="groups"></div>
+  </section>
+
+  <section class="card sec pb">
+    <div class="sec-h">
+      <div><h2 id="barsTitle">Comparatif</h2><div class="sub" id="barsSub"></div></div>
+      <div class="row no-print" style="gap:8px">
+        <div class="seg" id="dimSeg"></div>
+        <div class="seg" id="metricSeg"></div>
+      </div>
+    </div>
+    <div class="legend" id="barsLegend" style="margin-bottom:10px"></div>
+    <div id="bars"></div>
+  </section>
+
+  <div class="grid2 pb" id="printGrid"></div>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+/* =================== état & utilitaires =================== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nf0 = new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0});
+const nf1 = new Intl.NumberFormat('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1});
+const nf2 = new Intl.NumberFormat('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const eur = v => nf0.format(Math.round(v)) + ' €';
+const keur = v => Math.abs(v) >= 10000 ? nf1.format(v/1000) + ' k€' : eur(v);
+const pctf = v => isFinite(v) ? nf1.format(v*100) + ' %' : '–';
+const lsGet = (k,d) => { try{ const v = localStorage.getItem(k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } };
+const lsSet = (k,v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+
+let datasets = [];                 // {name, mtime, rows, error}
+let F = {mois:'', groupe:'', com:'', dossier:'', client:'', gc:''};
+let ETP_BASE = lsGet('marges-etp', 151.67);
+let ATTRIB = lsGet('marges-attrib', 'contrat');
+let groups = lsGet('marges-agences', []);   // [{id, name, members:[nom commercial]}]
+let dim = lsGet('marges-dim', 'dossier');
+let metric = lsGet('marges-metric', 'ca');
+let sortKey = 'metric', sortDir = -1, showAll = false;
+let editing = null;                // agence en cours d'édition
+
+/* =================== lecture des CSV =================== */
+const normH = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+function decode(buf){
+  let u = new Uint8Array(buf);
+  if (u[0]===0xEF && u[1]===0xBB && u[2]===0xBF) u = u.subarray(3);
+  try { return new TextDecoder('utf-8', {fatal:true}).decode(u); }
+  catch(e){ return new TextDecoder('windows-1252').decode(u); }
+}
+function parseCsv(text){
+  const sep = (text.split(/\r?\n/,1)[0].match(/;/g)||[]).length >= (text.split(/\r?\n/,1)[0].match(/,/g)||[]).length ? ';' : ',';
+  const out = []; let row = [], cur = '', q = false;
+  for (let i=0;i<text.length;i++){
+    const c = text[i];
+    if (q){ if (c==='"'){ if (text[i+1]==='"'){ cur+='"'; i++; } else q=false; } else cur+=c; }
+    else if (c==='"') q = true;
+    else if (c===sep){ row.push(cur); cur=''; }
+    else if (c==='\n'){ row.push(cur.replace(/\r$/,'')); out.push(row); row=[]; cur=''; }
+    else cur += c;
+  }
+  if (cur || row.length){ row.push(cur.replace(/\r$/,'')); out.push(row); }
+  return out.filter(r => r.some(x => x.trim()));
+}
+const num = s => { s = String(s??'').replace(/[\s  €%]/g,'').replace(',', '.'); const v = parseFloat(s); return isFinite(v) ? v : 0; };
+const cleanName = s => String(s||'').replace(/\s+\d+\s*$/,'').replace(/\s+/g,' ').trim() || '(non renseigné)';
+const clean = s => String(s||'').replace(/\s+/g,' ').trim();
+
+const COLS = {
+  dossier:['dossiertempo','dossier'], mois:['moisdepaie','mois'],
+  codeComContrat:['codecommercialcontrat'], comContrat:['commercialcontrat'],
+  codeClient:['codeduclient'], client:['nomduclient'], codeComClient:['codecommercialclient'], comClient:['commercialclient'],
+  gc:['grandcompte'], matricule:['matriculedusalarie'], salarie:['nomdusalarie'], contrat:['ncontrat','numerocontrat'],
+  qualif:['qualification'], hp:['hrspaye','heurespayees'], hf:['hrsfact','heuresfacturees'],
+  paye:['totalpaye'], fact:['totalfacture'], marge:['marge'], coeff:['coeffcommercial'],
+};
+function parseMarges(buf, fileName){
+  const rows = parseCsv(decode(buf));
+  if (!rows.length) return {rows:[], error:'fichier vide'};
+  const H = rows[0].map(normH);
+  const idx = {};
+  for (const [k, names] of Object.entries(COLS)) idx[k] = H.findIndex(h => names.includes(h));
+  if (idx.dossier < 0 || idx.hf < 0 || idx.fact < 0) return {rows:[], error:'pas un export de marges', skip:true};
+  const g = (r,k) => idx[k] >= 0 ? r[idx[k]] : '';
+  const out = [];
+  for (const r of rows.slice(1)){
+    if (!clean(g(r,'dossier'))) continue;
+    const fact = num(g(r,'fact')), paye = num(g(r,'paye'));
+    out.push({
+      fichier: fileName, raw: r.join(';'),
+      dossier: clean(g(r,'dossier')), mois: clean(g(r,'mois')),
+      comContrat: cleanName(g(r,'comContrat')), comClient: cleanName(g(r,'comClient')),
+      client: clean(g(r,'client')) || '(non renseigné)', gc: clean(g(r,'gc')).replace(/^<\s*pas d.fini\s*>$/i,'') || '—',
+      matricule: clean(g(r,'matricule')), salarie: clean(g(r,'salarie')), contrat: clean(g(r,'contrat')), qualif: clean(g(r,'qualif')),
+      hp: num(g(r,'hp')), hf: num(g(r,'hf')), paye, fact,
+      marge: idx.marge >= 0 ? num(g(r,'marge')) : fact - paye, coeff: num(g(r,'coeff')),
+    });
+  }
+  return {rows: out, error: out.length ? '' : 'aucune ligne'};
+}
+const moisLabel = m => { const x = /^(\d{4})(\d{2})$/.exec(m||''); if (!x) return m||'';
+  return new Date(+x[1], +x[2]-1, 1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'}).replace(/^./,c=>c.toUpperCase()); };
+
+/* =================== agrégation =================== */
+const comOf = r => ATTRIB === 'client' ? r.comClient : r.comContrat;
+// une ligne identique présente dans plusieurs fichiers (export refait) n'est comptée qu'une fois
+function allRows(){
+  const best = new Map();
+  for (const d of [...datasets].sort((a,b)=>(a.mtime||0)-(b.mtime||0))){
+    const cnt = new Map();
+    for (const r of d.rows){ const k = r.raw; cnt.set(k, (cnt.get(k)||0)+1); }
+    for (const [k,c] of cnt){ const prev = best.get(k); if (!prev || c >= prev.c) best.set(k, {c, rows: d.rows.filter(r=>r.raw===k)}); }
+  }
+  return [...best.values()].flatMap(x => x.rows);
+}
+const groupById = id => groups.find(g => g.id === id);
+function filtered(except){
+  const gr = F.groupe ? groupById(F.groupe) : null;
+  return allRows().filter(r =>
+    (except==='mois'    || !F.mois    || r.mois === F.mois) &&
+    (except==='groupe'  || !gr        || gr.members.includes(comOf(r))) &&
+    (except==='com'     || !F.com     || comOf(r) === F.com) &&
+    (except==='dossier' || !F.dossier || r.dossier === F.dossier) &&
+    (except==='client'  || !F.client  || r.client === F.client) &&
+    (except==='gc'      || !F.gc      || r.gc === F.gc));
+}
+function agg(rows){
+  let hf=0, hp=0, ca=0, cout=0, marge=0, cw=0, ch=0;
+  const mat = new Set(), cli = new Set(), ctr = new Set(), dos = new Set(), coms = new Set();
+  for (const r of rows){
+    hf+=r.hf; hp+=r.hp; ca+=r.fact; cout+=r.paye; marge+=r.marge;
+    if (r.coeff > 0 && r.hf > 0){ cw += r.coeff*r.hf; ch += r.hf; }
+    if (r.matricule && r.hf > 0) mat.add(r.matricule);
+    if (r.fact > 0) cli.add(r.client);
+    if (r.contrat) ctr.add(r.contrat);
+    dos.add(r.dossier); coms.add(comOf(r));
+  }
+  const etp = hf / ETP_BASE;
+  return {hf, hp, etp, ca, cout, marge, taux: ca ? marge/ca : NaN, coeff: ch ? cw/ch : NaN,
+    margeH: hf ? marge/hf : NaN, caEtp: etp ? ca/etp : NaN, margeEtp: etp ? marge/etp : NaN,
+    interims: mat.size, clients: cli.size, contrats: ctr.size, dossiers: dos.size, commerciaux: coms.size, lignes: rows.length};
+}
+const groupRows = (rows, keyFn) => { const m = new Map(); for (const r of rows){ const k = keyFn(r); if (!m.has(k)) m.set(k, []); m.get(k).push(r); } return m; };
+const uniqSorted = (rows, f) => [...new Set(rows.map(f))].filter(Boolean).sort((a,b)=>a.localeCompare(b,'fr'));
+
+const METRICS = {
+  ca:    {label:'CA facturé',    get:a=>a.ca,    fmt:keur},
+  marge: {label:'Marge',         get:a=>a.marge, fmt:keur},
+  taux:  {label:'Taux de marge', get:a=>a.taux,  fmt:pctf},
+  etp:   {label:'ETP',           get:a=>a.etp,   fmt:v=>nf1.format(v)},
+  hf:    {label:'Heures fact.',  get:a=>a.hf,    fmt:v=>nf0.format(v)+' h'},
+};
+const DIMS = {
+  dossier:{label:'Dossier', plural:'dossiers', key:r=>r.dossier},
+  com:    {label:'Commercial', plural:'commerciaux', key:r=>comOf(r)},
+  groupe: {label:'Agence', plural:'agences'},
+  client: {label:'Client', plural:'clients', key:r=>r.client},
+  qualif: {label:'Qualification', plural:'qualifications', key:r=>r.qualif||'(non renseignée)'},
+};
+// lignes de comparaison pour une dimension
+function dimRows(rows, d){
+  if (d === 'groupe') return groups.map(g => ({k:g.id, label:g.name, sub:g.members.join(', '), a:agg(rows.filter(r=>g.members.includes(comOf(r))))})).filter(x=>x.a.lignes);
+  return [...groupRows(rows, DIMS[d].key)].map(([k,v]) => {
+    let sub = '';
+    if (d==='com') sub = uniqSorted(v, r=>r.dossier).join(', ');
+    else if (d==='dossier') sub = uniqSorted(v, comOf).join(', ');
+    else if (d==='client') sub = uniqSorted(v, r=>r.dossier).join(', ');
+    return {k, label:k, sub, a:agg(v)};
+  });
+}
+
+/* =================== rendu =================== */
+function fillSelect(sel, values, cur, all, labelFn){
+  sel.innerHTML = `<option value="">${all}</option>` + values.map(v=>`<option value="${esc(v)}" ${v===cur?'selected':''}>${esc(labelFn?labelFn(v):v)}</option>`).join('');
+}
+function scopeText(){
+  const p = [];
+  if (F.mois) p.push(moisLabel(F.mois)); else { const ms = uniqSorted(filtered(), r=>r.mois); if (ms.length) p.push(ms.length===1 ? moisLabel(ms[0]) : `${moisLabel(ms[0])} – ${moisLabel(ms[ms.length-1])}`); }
+  if (F.groupe){ const g = groupById(F.groupe); if (g) p.push('Agence ' + g.name); }
+  if (F.com) p.push(F.com);
+  if (F.dossier) p.push('Dossier ' + F.dossier);
+  if (F.client) p.push(F.client);
+  if (F.gc) p.push('Grand compte ' + F.gc);
+  return p.join(' · ') || 'Toutes les données';
+}
+
+function render(){
+  // filtres
+  fillSelect($('fMois'), uniqSorted(filtered('mois'), r=>r.mois).reverse(), F.mois, 'Tous', moisLabel);
+  if (F.groupe && !groupById(F.groupe)) F.groupe = '';
+  $('fGroupe').innerHTML = `<option value="">Toutes</option>` + groups.map(g=>`<option value="${esc(g.id)}" ${g.id===F.groupe?'selected':''}>${esc(g.name)}</option>`).join('');
+  fillSelect($('fCom'), uniqSorted(filtered('com'), comOf), F.com, 'Tous');
+  fillSelect($('fDossier'), uniqSorted(filtered('dossier'), r=>r.dossier), F.dossier, 'Tous');
+  fillSelect($('fClient'), uniqSorted(filtered('client'), r=>r.client), F.client, 'Tous');
+  fillSelect($('fGC'), uniqSorted(filtered('gc'), r=>r.gc), F.gc, 'Tous');
+
+  const all = allRows();
+  $('files').innerHTML = datasets.length ? datasets.map(d=>`<span class="chip ${d.error && !d.skip?'err':''}" title="${esc(d.error||'')}">${esc(d.name)} <span class="muted">(${d.error ? (d.skip?'ignoré : ':'⚠ ')+esc(d.error) : d.rows.length+' lignes'})</span></span>`).join('')
+    : `<span class="muted">${(dirHandle||snapshotFiles)?'Aucun export CSV de marges dans ce dossier pour l\'instant.':'Aucun fichier. Choisis le dossier des exports ou ajoute un CSV.'}</span>`;
+  const ms = uniqSorted(all, r=>r.mois);
+  $('subtitle').textContent = all.length ? `${datasets.filter(d=>d.rows.length).length} fichier(s) · ${nf0.format(all.length)} lignes · ${ms.map(moisLabel).join(', ')}` : 'Reporting par dossier, par commercial et par agence';
+  $('printScope').textContent = `${scopeText()} · édité le ${new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})} · ETP = heures facturées / ${nf2.format(ETP_BASE)}`;
+
+  const rows = filtered();
+  renderKpis(rows);
+  renderGroups(filtered('groupe'));
+  renderBars(rows);
+  renderPrintGrid(rows);
+}
+
+function renderKpis(rows){
+  const a = agg(rows);
+  const k = [
+    ['CA facturé', eur(a.ca), `coût ${eur(a.cout)}`],
+    ['Marge', eur(a.marge), `${nf2.format(a.margeH||0)} € / heure fact.`, a.marge<0],
+    ['Taux de marge', pctf(a.taux), isFinite(a.coeff)?`coeff. moyen ${nf2.format(a.coeff)}`:''],
+    ['ETP', nf1.format(a.etp), `${nf0.format(a.hf)} h fact. / ${nf2.format(ETP_BASE)}`],
+    ['Marge / ETP', isFinite(a.margeEtp)?eur(a.margeEtp):'–', isFinite(a.caEtp)?`CA / ETP ${eur(a.caEtp)}`:''],
+    ['Intérimaires', nf0.format(a.interims), `${nf0.format(a.contrats)} contrats`],
+    ['Clients', nf0.format(a.clients), `${nf0.format(a.dossiers)} dossier(s)`],
+  ];
+  $('kpis').innerHTML = k.map(([l,v,s,neg])=>`<div class="card kpi"><div class="v" ${neg?'style="color:var(--neg)"':''}>${v}</div><div class="l">${l}</div>${s?`<div class="s">${s}</div>`:''}</div>`).join('');
+}
+
+function splitBar(a){
+  const ca = Math.max(a.ca, 0), m = Math.max(a.marge, 0), c = Math.max(ca - m, 0);
+  if (!ca) return '<div class="split"></div>';
+  return `<div class="split"><span style="flex:${c};background:var(--cost)"></span><span style="flex:${m};background:var(--marge)"></span></div>`;
+}
+function renderGroups(rows){
+  $('groupsSec').style.display = '';
+  if (!groups.length){
+    $('groups').innerHTML = `<div class="card empty" style="grid-column:1/-1">Aucune agence définie. Crée une agence en choisissant ses commerciaux, ou clique sur « Créer une agence par fichier ».</div>`;
+    return;
+  }
+  const total = agg(rows);
+  $('groups').innerHTML = groups.map(g=>{
+    const v = rows.filter(r => g.members.includes(comOf(r))), a = agg(v);
+    return `<div class="card grp ${F.groupe===g.id?'sel':''}" data-grp="${esc(g.id)}">
+      <div class="row" style="justify-content:space-between"><span class="name">${esc(g.name)}</span><span class="muted" style="font-size:12px">${g.members.length} commercial(aux)</span></div>
+      <div class="big">${eur(a.ca)} <span class="sub" style="font-size:13px;font-weight:400">CA${total.ca?` · ${nf0.format(a.ca/total.ca*100)} %`:''}</span></div>
+      <div data-tip="${esc(`<b>${esc(g.name)}</b><br>CA : ${eur(a.ca)}<br>Coût : ${eur(a.cout)}<br>Marge : ${eur(a.marge)} (${pctf(a.taux)})`)}">${splitBar(a)}</div>
+      <dl><dt>Marge</dt><dd ${a.marge<0?'style="color:var(--neg)"':''}><b>${eur(a.marge)}</b> · ${pctf(a.taux)}</dd>
+        <dt>ETP</dt><dd>${nf1.format(a.etp)} <span class="muted">(${nf0.format(a.hf)} h)</span></dd>
+        <dt>Marge / ETP</dt><dd>${isFinite(a.margeEtp)?eur(a.margeEtp):'–'}</dd>
+        <dt>Intérimaires · clients</dt><dd>${a.interims} · ${a.clients}</dd></dl>
+      <div class="members">${esc(g.members.join(', ') || 'aucun commercial')}</div>
+      <div class="acts"><button data-gedit="${esc(g.id)}">Modifier</button><button class="danger" data-gdel="${esc(g.id)}">Supprimer</button></div>
+    </div>`;
+  }).join('');
+}
+
+function renderEditor(){
+  const box = $('editorBox');
+  if (!editing){ box.innerHTML = ''; return; }
+  const all = allRows();
+  const coms = uniqSorted(all, comOf);
+  for (const m of editing.members) if (!coms.includes(m)) coms.push(m);
+  const info = c => { const a = agg(all.filter(r=>comOf(r)===c)); return a.lignes ? `${eur(a.ca)} · ${nf1.format(a.etp)} ETP` : 'absent des données'; };
+  box.innerHTML = `<div class="editor">
+    <div class="row"><label class="f" style="flex:1;min-width:220px">Nom de l'agence<input id="gName" value="${esc(editing.name)}" placeholder="ex. Pau"></label></div>
+    <div class="sub" style="margin-top:10px">Commerciaux à additionner :</div>
+    <div class="checks">${coms.map(c=>`<label><input type="checkbox" value="${esc(c)}" ${editing.members.includes(c)?'checked':''}> ${esc(c)} <span class="muted" style="font-size:11.5px">${info(c)}</span></label>`).join('') || '<span class="muted">Importe d\'abord un export.</span>'}</div>
+    <div class="row" style="gap:8px"><button class="primary" id="gSave">Enregistrer</button><button id="gCancel">Annuler</button></div></div>`;
+  $('gName').focus();
+}
+
+function renderBars(rows){
+  if (dim === 'groupe' && !groups.length) dim = 'dossier';
+  $('dimSeg').innerHTML = Object.entries(DIMS).filter(([k])=>k!=='groupe'||groups.length).map(([k,d])=>`<button data-dim="${k}" class="${k===dim?'on':''}">${d.label}</button>`).join('');
+  $('metricSeg').innerHTML = Object.entries(METRICS).map(([k,m])=>`<button data-metric="${k}" class="${k===metric?'on':''}">${m.label}</button>`).join('');
+  const M = METRICS[metric];
+  $('barsTitle').textContent = `${M.label} par ${DIMS[dim].label.toLowerCase()}`;
+  $('barsLegend').innerHTML = metric==='ca'
+    ? `<span><i style="background:var(--cost)"></i>Coût (total payé)</span><span><i style="background:var(--marge)"></i>Marge</span><span><i style="background:var(--neg)"></i>Marge négative</span>`
+    : `<span><i style="background:var(--bar)"></i>${M.label}</span>`;
+  const list = sortList(dimRows(rows, dim));
+  $('barsSub').textContent = `${list.length} ${DIMS[dim].plural} · clique sur une ligne pour filtrer`;
+  $('bars').innerHTML = barTable(list, rows, {limit: showAll ? 0 : 15, click: true});
+}
+function sortList(list){
+  const M = METRICS[metric];
+  const val = x => sortKey==='metric' ? M.get(x.a) : sortKey==='label' ? x.label : x.a[sortKey];
+  return list.sort((p,q)=>{ const a = val(p), b = val(q);
+    const c = typeof a === 'string' ? a.localeCompare(b,'fr') : ((isFinite(a)?a:-Infinity) - (isFinite(b)?b:-Infinity));
+    return c * sortDir || q.a.ca - p.a.ca; });
+}
+function barTable(list, rows, opt){
+  if (!list.length) return '<div class="empty">Aucune donnée</div>';
+  const M = METRICS[metric];
+  const vals = list.map(x => M.get(x.a)).filter(isFinite);
+  const max = Math.max(1e-9, ...vals.map(Math.abs), metric==='ca' ? 0 : 0);
+  const shown = opt.limit ? list.slice(0, opt.limit) : list;
+  const arrow = k => opt.click && sortKey===k ? (sortDir<0?' ↓':' ↑') : '';
+  const sel = dim==='groupe' ? F.groupe : dim==='com' ? F.com : dim==='dossier' ? F.dossier : dim==='client' ? F.client : '';
+  const head = `<div class="bt-head"><span class="${opt.click?'sort':''}" data-bsort="label">${DIMS[dim].label}${arrow('label')}</span><span class="${opt.click?'sort':''}" data-bsort="metric">${M.label}${arrow('metric')}</span>
+    <span class="n ${opt.click?'sort':''}" data-bsort="etp">ETP${arrow('etp')}</span><span class="n ${opt.click?'sort':''}" data-bsort="ca">CA${arrow('ca')}</span>
+    <span class="n ${opt.click?'sort':''}" data-bsort="marge">Marge${arrow('marge')}</span><span class="n ${opt.click?'sort':''}" data-bsort="taux">Taux${arrow('taux')}</span></div>`;
+  const line = (x, isTot) => {
+    const a = x.a, v = M.get(a);
+    let bar;
+    if (metric === 'ca'){
+      const w = Math.max(a.ca,0)/max*100, m = a.marge, c = a.ca - Math.max(m,0);
+      bar = `<div class="fill" style="width:${Math.min(100,w)}%">${c>0?`<span style="flex:${c};background:var(--cost)"></span>`:''}${m>0?`<span style="flex:${m};background:var(--marge)"></span>`:''}${m<0?`<span style="flex:${Math.max(-m, a.ca*0.02)};background:var(--neg)"></span>`:''}</div>`;
+    } else {
+      const w = isFinite(v) ? Math.abs(v)/max*100 : 0;
+      bar = `<div class="fill" style="width:${Math.min(100,w)}%"><span style="flex:1;background:${v<0?'var(--neg)':'var(--bar)'}"></span></div>`;
+    }
+    if (isTot) bar = '';
+    const tip = `<b>${esc(x.label)}</b><br>CA : ${eur(a.ca)}<br>Coût : ${eur(a.cout)}<br>Marge : ${eur(a.marge)} (${pctf(a.taux)})<br>ETP : ${nf2.format(a.etp)} (${nf0.format(a.hf)} h fact.)<br>Marge / ETP : ${isFinite(a.margeEtp)?eur(a.margeEtp):'–'}<br>Intérimaires : ${a.interims} · clients : ${a.clients}`;
+    return `<div class="bt-row ${isTot?'tot':''} ${!isTot&&opt.click?'click':''} ${!isTot&&sel===x.k?'sel':''}" ${!isTot&&opt.click?`data-pick="${esc(x.k)}"`:''} ${isTot?'':`data-tip="${esc(tip)}"`}>
+      <div class="lbl">${esc(x.label)}${x.sub?`<small>${esc(x.sub)}</small>`:''}</div>
+      <div class="track">${bar}</div>
+      <div class="n" data-l="ETP">${nf1.format(a.etp)}</div><div class="n" data-l="CA">${keur(a.ca)}</div>
+      <div class="n ${a.marge<0?'neg':''}" data-l="Marge">${keur(a.marge)}</div><div class="n ${a.taux<0?'neg':''}" data-l="Taux">${pctf(a.taux)}</div></div>`;
+  };
+  const tot = {label:'Total', a: dim==='groupe' ? agg(rows.filter(r=>groups.some(g=>g.members.includes(comOf(r))))) : agg(rows)};
+  let more = '';
+  if (opt.limit && list.length > opt.limit) more = `<div class="more"><button data-bmore="1">Afficher les ${list.length - opt.limit} autres</button></div>`;
+  else if (opt.click && !opt.limit && list.length > 15) more = `<div class="more"><button data-bmore="0">Réduire</button></div>`;
+  return head + shown.map(x=>line(x,false)).join('') + line(tot,true) + more;
+}
+
+// pour l'impression : les autres découpages, en plus du comparatif principal
+function renderPrintGrid(rows){
+  const save = {dim, metric, sortKey, sortDir};
+  const parts = [];
+  sortKey = 'metric'; sortDir = -1; metric = 'ca';
+  for (const d of ['groupe','dossier','com','client']){
+    if (d === save.dim || (d==='groupe' && !groups.length)) continue;
+    dim = d;
+    const list = sortList(dimRows(rows, d));
+    parts.push(`<section class="card print-only"><h2>CA et marge par ${DIMS[d].label.toLowerCase()}</h2><div class="legend" style="margin:4px 0 8px"><span><i style="background:var(--cost)"></i>Coût</span><span><i style="background:var(--marge)"></i>Marge</span></div>${barTable(list, rows, {limit: 12, click:false})}</section>`);
+  }
+  dim = save.dim; metric = save.metric; sortKey = save.sortKey; sortDir = save.sortDir;
+  $('printGrid').innerHTML = parts.join('');
+}
+
+/* =================== tooltip =================== */
+const tip = $('tip');
+document.addEventListener('mousemove', e => {
+  const t = e.target.closest('[data-tip]');
+  if (!t){ tip.style.opacity=0; return; }
+  tip.innerHTML = t.dataset.tip; tip.style.opacity=1;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + w > innerWidth - 8) x = e.clientX - w - 14;
+  if (y + h > innerHeight - 8) y = e.clientY - h - 14;
+  tip.style.left = x+'px'; tip.style.top = y+'px';
+});
+
+/* =================== surveillance du dossier =================== */
+const FS_OK = 'showDirectoryPicker' in window;
+const EXT = /\.csv$/i;
+const cache = new Map(), manual = new Map();
+let dirHandle = null, snapshotFiles = null, syncing = false, lastSig = '', lastChange = '';
+function idb(){ return new Promise((ok,ko)=>{ const r = indexedDB.open('stats-commerciales',1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => ok(r.result); r.onerror = () => ko(r.error); }); }
+async function kvSet(k,v){ try{ const db = await idb(); await new Promise((ok,ko)=>{ const t=db.transaction('kv','readwrite'); t.objectStore('kv').put(v,k); t.oncomplete=ok; t.onerror=()=>ko(t.error); }); }catch(e){} }
+async function kvGet(k){ try{ const db = await idb(); return await new Promise((ok,ko)=>{ const r=db.transaction('kv').objectStore('kv').get(k); r.onsuccess=()=>ok(r.result); r.onerror=()=>ko(r.error); }); }catch(e){ return null; } }
+async function listFolder(dir, prefix='', out=[]){
+  for await (const [name, h] of dir.entries()){
+    if (name.startsWith('~$') || name.startsWith('.')) continue;
+    if (h.kind === 'directory') await listFolder(h, prefix+name+'/', out);
+    else if (EXT.test(name)) out.push({name: prefix+name, handle: h});
+  }
+  return out;
+}
+async function currentEntries(){
+  if (dirHandle){
+    const out = [];
+    for (const e of await listFolder(dirHandle)){
+      try{ const f = await e.handle.getFile(); out.push({name:e.name, mtime:f.lastModified, size:f.size, file:f}); }
+      catch(err){ out.push({name:e.name, mtime:0, size:-1, file:null}); }
+    }
+    return out;
+  }
+  if (snapshotFiles) return snapshotFiles.filter(f=>EXT.test(f.name)).map(f=>({name:f.webkitRelativePath.split('/').slice(1).join('/')||f.name, mtime:f.lastModified, size:f.size, file:f}));
+  return [];
+}
+async function sync(){
+  if (syncing) return; syncing = true;
+  try{
+    const entries = await currentEntries();
+    for (const [n,f] of manual) entries.push({name:'(ajouté) '+n, mtime:f.lastModified, size:f.size, file:f});
+    const sig = entries.map(f=>f.name+':'+f.mtime+':'+f.size).join('|');
+    if (sig !== lastSig){
+      const names = new Set(entries.map(f=>f.name)); let retry = false, changed = 0;
+      for (const n of [...cache.keys()]) if (!names.has(n)){ cache.delete(n); changed++; }
+      for (const f of entries){
+        const fsig = f.mtime+':'+f.size, prev = cache.get(f.name);
+        if (prev && prev.sig === fsig) continue;
+        changed++;
+        try{
+          if (!f.file) throw new Error('illisible');
+          const res = parseMarges(await f.file.arrayBuffer(), f.name.replace(/^\(ajouté\) /,''));
+          cache.set(f.name, {sig:fsig, mtime:f.mtime, rows:res.rows, error:res.error, skip:res.skip});
+        }catch(e){ retry = true; cache.set(f.name, {sig:'retry', mtime:f.mtime, rows: prev?prev.rows:[], error:'illisible pour l\'instant (fichier ouvert ?)'}); }
+      }
+      if (!retry) lastSig = sig;
+      datasets = [...cache].sort((a,b)=>a[0].localeCompare(b[0],'fr')).map(([name,c])=>({name, ...c}));
+      if (changed) lastChange = `dernier changement à ${new Date().toLocaleTimeString('fr-FR')}`;
+      render(); if (editing) renderEditor();
+    }
+    setLive(dirHandle ? 'ok' : snapshotFiles ? 'snap' : (manual.size ? 'manual' : 'none'));
+  }catch(e){ setLive('lost'); }
+  finally{ syncing = false; }
+}
+function setLive(state){
+  const dot = $('liveDot'), txt = $('liveTxt');
+  $('pickBtn').textContent = (dirHandle || snapshotFiles) ? 'Changer de dossier' : 'Choisir le dossier des exports';
+  $('refreshBtn').hidden = state !== 'snap';
+  $('reconnectBtn').hidden = state !== 'reconnect';
+  if (state==='ok'){ dot.className='dot ok'; txt.textContent = `Mise à jour automatique active · vérifié à ${new Date().toLocaleTimeString('fr-FR')}` + (lastChange?' · '+lastChange:''); }
+  else if (state==='snap'){ dot.className='dot'; txt.textContent = 'Ce navigateur ne surveille pas les dossiers : clique sur « Actualiser » après un nouvel export (ou utilise Edge / Chrome).'; }
+  else if (state==='reconnect'){ dot.className='dot'; txt.textContent = 'Clique sur « Reprendre la surveillance » pour réautoriser l\'accès au dossier.'; }
+  else if (state==='lost'){ dot.className='dot ko'; txt.textContent = 'Le dossier n\'est plus accessible. Choisis-le à nouveau.'; dirHandle = null; }
+  else if (state==='manual'){ dot.className='dot'; txt.textContent = 'Fichiers ajoutés à la main (non surveillés). Choisis un dossier pour la mise à jour automatique.'; }
+  else { dot.className='dot'; txt.textContent = 'Choisis le dossier où tu enregistres les exports de marges (.csv) : la page le surveillera et se mettra à jour toute seule.'; }
+}
+async function pickFolder(){
+  if (!FS_OK){ $('dirInput').click(); return; }
+  try{
+    const h = await window.showDirectoryPicker({id:'marges', mode:'read'});
+    dirHandle = h; snapshotFiles = null; lastSig=''; cache.clear(); $('folder').textContent = h.name; kvSet('dir-marges', h); sync();
+  }catch(e){ if (e.name !== 'AbortError') alert('Accès au dossier refusé : ' + e.message); }
+}
+async function reconnect(){
+  const h = await kvGet('dir-marges'); if (!h) return pickFolder();
+  try{ if (await h.requestPermission({mode:'read'}) === 'granted'){ dirHandle = h; $('folder').textContent = h.name; lastSig=''; sync(); } }catch(e){ pickFolder(); }
+}
+async function restoreFolder(){
+  if (!FS_OK){ setLive('none'); return; }
+  const h = await kvGet('dir-marges'); if (!h){ setLive('none'); return; }
+  $('folder').textContent = h.name;
+  let perm = 'prompt'; try{ perm = await h.queryPermission({mode:'read'}); }catch(e){}
+  if (perm === 'granted'){ dirHandle = h; sync(); } else setLive('reconnect');
+}
+function addFiles(files){ for (const f of files) manual.set(f.name, f); lastSig=''; sync(); }
+
+/* =================== agences =================== */
+function saveGroups(){ lsSet('marges-agences', groups); }
+function autoGroups(){
+  const created = [];
+  for (const d of datasets.filter(d=>d.rows.length)){
+    const members = uniqSorted(d.rows, comOf);
+    const base = d.name.replace(/\.csv$/i,'').replace(/^.*\//,'');
+    // nom proposé : noms de famille des commerciaux (à renommer ensuite, ex. « Pau »)
+    const last = members.map(m => (m.split(' ').find(w => w.length > 1 && w === w.toUpperCase()) || m));
+    const name = last.slice(0,3).join(' + ') + (last.length > 3 ? ` + ${last.length-3}` : '');
+    if (groups.some(g => g.members.slice().sort().join('|') === members.slice().sort().join('|'))) continue;
+    created.push({id:'g'+Date.now().toString(36)+created.length, name, members, source: base});
+  }
+  if (!created.length){ alert('Toutes les combinaisons de commerciaux des fichiers existent déjà en agence.'); return; }
+  groups = groups.concat(created); saveGroups(); render();
+}
+
+/* =================== événements =================== */
+const bindF = (id,k) => $(id).addEventListener('change', e => { F[k] = e.target.value; render(); });
+bindF('fMois','mois'); bindF('fGroupe','groupe'); bindF('fCom','com'); bindF('fDossier','dossier'); bindF('fClient','client'); bindF('fGC','gc');
+$('clearBtn').onclick = () => { F = {mois:'', groupe:'', com:'', dossier:'', client:'', gc:''}; render(); };
+$('etpBase').value = ETP_BASE;
+$('etpBase').addEventListener('change', e => { const v = num(e.target.value); if (v > 0){ ETP_BASE = v; lsSet('marges-etp', v); render(); } else e.target.value = ETP_BASE; });
+$('attrib').value = ATTRIB;
+$('attrib').onchange = e => { ATTRIB = e.target.value; lsSet('marges-attrib', ATTRIB); F.com=''; render(); if (editing) renderEditor(); };
+$('pickBtn').onclick = pickFolder; $('reconnectBtn').onclick = reconnect;
+$('refreshBtn').onclick = () => $('dirInput').click();
+$('addBtn').onclick = () => $('fileInput').click();
+$('fileInput').onchange = e => { addFiles([...e.target.files]); e.target.value=''; };
+$('dirInput').onchange = e => { snapshotFiles = [...e.target.files]; dirHandle = null; lastSig=''; cache.clear(); $('folder').textContent = (snapshotFiles[0]?.webkitRelativePath||'').split('/')[0] || 'dossier'; e.target.value=''; sync(); };
+$('newGroup').onclick = () => { editing = {id:null, name:'', members: F.com ? [F.com] : []}; renderEditor(); };
+$('autoGroups').onclick = autoGroups;
+$('pdfBtn').onclick = () => { render(); setTimeout(() => window.print(), 50); };
+$('pptxBtn').onclick = () => window.exportMargesPptx && window.exportMargesPptx();
+$('themeBtn').onclick = () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.dataset.theme = cur==='dark' ? 'light' : 'dark';
+  try{ localStorage.setItem('stats-theme', document.documentElement.dataset.theme); }catch(e){}
+};
+try{ const t = localStorage.getItem('stats-theme'); if (t) document.documentElement.dataset.theme = t; }catch(e){}
+
+document.addEventListener('click', e => {
+  const t = e.target;
+  if (t.id === 'gCancel'){ editing = null; renderEditor(); return; }
+  if (t.id === 'gSave'){
+    const name = $('gName').value.trim();
+    const members = [...document.querySelectorAll('.editor input[type=checkbox]:checked')].map(x=>x.value);
+    if (!name){ $('gName').focus(); return; }
+    if (!members.length){ alert('Coche au moins un commercial.'); return; }
+    if (editing.id){ const g = groupById(editing.id); g.name = name; g.members = members; }
+    else groups.push({id:'g'+Date.now().toString(36), name, members});
+    saveGroups(); editing = null; renderEditor(); render(); return;
+  }
+  const ge = t.closest('[data-gedit]'); if (ge){ e.stopPropagation(); const g = groupById(ge.dataset.gedit); editing = {id:g.id, name:g.name, members:[...g.members]}; renderEditor(); $('editorBox').scrollIntoView({block:'nearest'}); return; }
+  const gd = t.closest('[data-gdel]'); if (gd){ const g = groupById(gd.dataset.gdel); if (confirm(`Supprimer l'agence « ${g.name} » ? (les données ne sont pas touchées)`)){ groups = groups.filter(x=>x.id!==g.id); if (F.groupe===g.id) F.groupe=''; saveGroups(); render(); } return; }
+  const gr = t.closest('[data-grp]'); if (gr){ F.groupe = F.groupe===gr.dataset.grp ? '' : gr.dataset.grp; render(); return; }
+  const dm = t.closest('[data-dim]'); if (dm){ dim = dm.dataset.dim; lsSet('marges-dim', dim); showAll=false; render(); return; }
+  const mt = t.closest('[data-metric]'); if (mt){ metric = mt.dataset.metric; lsSet('marges-metric', metric); sortKey='metric'; sortDir=-1; render(); return; }
+  const bs = t.closest('[data-bsort]'); if (bs){ const k = bs.dataset.bsort; if (sortKey===k) sortDir*=-1; else { sortKey=k; sortDir = k==='label'?1:-1; } render(); return; }
+  const bm = t.closest('[data-bmore]'); if (bm){ showAll = bm.dataset.bmore==='1'; render(); return; }
+  const pk = t.closest('[data-pick]'); if (pk){
+    const k = pk.dataset.pick, map = {groupe:'groupe', com:'com', dossier:'dossier', client:'client'};
+    if (map[dim]){ F[map[dim]] = F[map[dim]]===k ? '' : k; render(); }
+    return;
+  }
+});
+const drop = $('drop');
+['dragenter','dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev==='drop' || !e.relatedTarget) drop.classList.remove('over'); }));
+document.addEventListener('drop', e => { const fs=[...e.dataTransfer.files].filter(f=>EXT.test(f.name)); if (fs.length) addFiles(fs); });
+window.addEventListener('beforeprint', render);
+
+render();
+restoreFolder();
+setInterval(() => { if (dirHandle) sync(); }, 2000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && dirHandle) sync(); });
+</script>
+<script src="vendor/pptxgen.bundle.js"></script>
+<script src="export-marges-pptx.js"></script>
+</body>
+</html>
