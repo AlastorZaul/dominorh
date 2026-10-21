@@ -176,7 +176,7 @@ table.det td:last-child{min-width:200px}
     </div>
     <div class="row">
       <button id="themeBtn" title="Changer de thème">◐ Thème</button>
-      <button id="csvBtn">Exporter CSV</button>
+      <button id="pptxBtn" class="primary">Exporter en présentation (.pptx)</button>
     </div>
   </header>
 
@@ -267,7 +267,7 @@ table.det td:last-child{min-width:200px}
   <section class="card sec">
     <div class="sec-h">
       <div><h2>Données détaillées</h2><div class="sub" id="rawCount"></div></div>
-      <input type="search" id="search" placeholder="Rechercher (nom, client, action…)" style="min-width:260px">
+      <div class="row" style="gap:8px"><input type="search" id="search" placeholder="Rechercher (nom, client, action…)" style="min-width:240px"><button id="csvBtn" title="Exporter les données filtrées pour Excel">Exporter CSV</button></div>
     </div>
     <div id="rawTable"></div>
     <div class="pager" id="rawPager"></div>
@@ -276,6 +276,7 @@ table.det td:last-child{min-width:200px}
 <div class="tip" id="tip"></div>
 
 <script src="vendor/xlsx.full.min.js"></script>
+<script src="vendor/pptxgen.bundle.js"></script>
 <script>
 
 /* ---------- état ---------- */
@@ -799,6 +800,7 @@ bindF('fAgence','agence'); bindF('fCom','com'); bindF('fType','type'); bindF('fA
 $('clearBtn').onclick = () => { F = {agence:'',com:'',type:'',action:'',year:'',week:''}; selCom=''; $('search').value=''; render(); };
 $('search').addEventListener('input', () => { rawPage = 1; renderRaw(filtered()); });
 $('csvBtn').onclick = exportCsv;
+$('pptxBtn').onclick = () => window.exportPptx();
 $('dedupe').value = dedupe ? '1' : '0';
 $('dedupe').onchange = e => { dedupe = e.target.value === '1'; try{ localStorage.setItem('stats-dedupe', dedupe ? 'dedupe' : 'sum'); }catch(_){} render(); };
 $('addBtn').onclick = () => $('fileInput').click();
@@ -839,5 +841,6 @@ restoreFolder();
 setInterval(() => { if (dirHandle) sync(); }, 2000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && dirHandle) sync(); });
 </script>
+<script src="export-pptx.js"></script>
 </body>
 </html>

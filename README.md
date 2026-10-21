@@ -39,6 +39,7 @@ Un filtre **Semaine** et un graphique **Évolution par semaine** (cliquable) per
 - Fiche par agence (cliquer pour filtrer)
 - Actions par commercial et par type d'action, avec détail par commercial (cibles suivies et actions menées)
 - Tableau triable par commercial, matrice commercial × type d'action, cibles les plus travaillées
+- **Export en présentation PowerPoint (.pptx)** de la vue filtrée : page de titre, chiffres clés, agences, évolution par semaine, commerciaux, types d'action, puis une fiche par commercial — graphiques PowerPoint natifs, modifiables. Généré dans le navigateur, rien n'est envoyé.
 - Données détaillées avec recherche, tri et pagination ; export CSV de la vue filtrée
 - Filtres : agence, commercial, type de cible, type d'action, semaine, année
 - Évolution par semaine (graphique cliquable)
@@ -53,7 +54,9 @@ Télécharger le dépôt (**Code → Download ZIP**), le dézipper et ouvrir `in
 
 ```
 index.html                  l'application (HTML + CSS + JS, sans build)
+export-pptx.js              génération de la présentation PowerPoint
 vendor/xlsx.full.min.js     SheetJS Community Edition 0.18.5 (lecture des fichiers Excel, licence Apache-2.0)
+vendor/pptxgen.bundle.js    PptxGenJS 3.12.0 (création du .pptx, licence MIT)
 ```
 
 ## Publication (GitHub Pages)
