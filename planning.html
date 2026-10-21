@@ -117,6 +117,20 @@ table.evo th.cur{color:var(--accent)}
 table.evo td.cur{background:var(--surface-2);font-weight:600}
 table.evo tfoot td{font-weight:650;border-top:1px solid var(--border);border-bottom:0}
 .empty{color:var(--muted);padding:24px;text-align:center}
+.editbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;align-self:flex-end;margin-left:auto}
+#editBtn.on{background:#b25e00;border-color:#b25e00;color:#fff}
+.msg{font-size:13px;color:var(--text-2)}
+.msg:empty{display:none}
+.msg.ok{color:var(--ok)} .msg.err{color:var(--late);font-weight:600} .msg.busy{color:var(--warn)}
+.editnote{background:var(--warn-bg);color:var(--text);border:1px solid var(--warn);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:13px}
+input.ed{width:100%;padding:3px 5px;font-size:12.5px;border-radius:6px;background:var(--surface);min-width:0}
+input.ed.num{text-align:center;padding:3px 0;font-weight:600;font-variant-numeric:tabular-nums}
+input.ed.mt{margin-top:3px}
+input.ed.date{padding:2px 2px;font-size:11.5px}
+input.ed:focus{outline:2px solid var(--accent);outline-offset:0;border-color:var(--accent)}
+input.ed.saved{border-color:#1baf7a;box-shadow:0 0 0 2px rgba(27,175,122,.25)}
+input.ed.dirty{border-color:var(--warn)}
+tr.editing td{padding-top:4px;padding-bottom:4px}
 .print-only{display:none}
 @media (max-width:860px){
   table.pl thead{display:none}
@@ -189,6 +203,11 @@ table.evo tfoot td{font-weight:650;border-top:1px solid var(--border);border-bot
       <label class="f">Rechercher<input type="search" id="search" placeholder="Intérimaire, métier…" style="width:190px"></label>
       <label class="chk"><input type="checkbox" id="showExcl"> Afficher les clients exclus (sans 1)</label>
       <button id="clearBtn" style="align-self:flex-end">Réinitialiser</button>
+      <div class="editbar no-print">
+        <button id="editBtn" title="Modifier les heures, dates et informations directement dans le fichier Excel">✎ Modifier le planning</button>
+        <button id="undoBtn" hidden>↶ Annuler la dernière modification</button>
+        <span class="msg" id="editMsg" role="status" aria-live="polite"></span>
+      </div>
     </div>
   </div>
 
@@ -196,6 +215,7 @@ table.evo tfoot td{font-weight:650;border-top:1px solid var(--border);border-bot
 </div>
 
 <script src="vendor/xlsx.full.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
 <script>
 /* =================== utilitaires =================== */
 const $ = id => document.getElementById(id);
@@ -246,7 +266,9 @@ function parsePlanning(buf, fileName){
   const wb = XLSX.read(buf, {type:'array'});   // dates lues en numéro de série Excel : pas de décalage de fuseau horaire
   const weeks = [], skipped = [], notes = [];
   for (const sn of wb.SheetNames){
-    const grid = XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1, defval:null, raw:true});
+    const ws = wb.Sheets[sn];
+    const rg = XLSX.utils.decode_range(ws['!ref'] || 'A1');          // décalage de la plage (ex. commence en B)
+    const grid = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true, blankrows:true});
     const hi = grid.findIndex(r => r && r.some(c => normH(c)==='metier') && r.some(c => normH(c)==='candidat'));
     if (hi < 0){ skipped.push(sn); continue; }
     const H = grid[hi];
@@ -258,6 +280,8 @@ function parsePlanning(buf, fileName){
     const dayCols = []; H.forEach((c,i) => { if (toDate(c) && dayCols.length < 7) dayCols.push(i); });
     if (dayCols.length < 5){ skipped.push(sn); continue; }
     const cTot = H.findIndex((c,i) => i > dayCols[dayCols.length-1] && /^the/.test(normH(c)));
+    const cEtp = H.findIndex((c,i) => i > cTot && cTot >= 0 && /^t(in|etp)/.test(normH(c)));
+    const abs = c => c >= 0 ? rg.s.c + c : -1;                         // colonne absolue (0 = A)
     const between = []; for (let i = cCand+1; i < dayCols[0]; i++) between.push(i);   // colonnes début / fin de contrat
     const cDeb = between[0] ?? -1, cFin = between[1] ?? -1;
     // semaine : nom de l'onglet (S43) en priorité, sinon dates d'en-tête
@@ -290,7 +314,9 @@ function parsePlanning(buf, fileName){
       rows.push({type:'int', client: client ? client.name : '(sans client)', inclus: client ? client.inclus : false,
         nom: name, metier: met, contrat: cCtr>=0 ? clean(R[cCtr]) : '', vm: cVm>=0 ? clean(R[cVm]) : '', commentaire: cCom>=0 ? clean(R[cCom]) : '',
         candidat: toNum(R[cCand]), debut: cDeb>=0 ? toDate(R[cDeb]) : null, fin: cFin>=0 ? toDate(R[cFin]) : null,
-        days, total, fileTot});
+        days, total, fileTot,
+        ref: {sheet: sn, row: rg.s.r + r + 1, cols: {nom: abs(nameCol), metier: abs(cMet), contrat: abs(cCtr), vm: abs(cVm), commentaire: abs(cCom),
+          debut: abs(cDeb), fin: abs(cFin), days: dayCols.map(abs), tot: abs(cTot), etp: abs(cEtp)}}});
     }
     weeks.push({sheet: sn, week: wk, agence, rows});
   }
@@ -311,7 +337,7 @@ function allWeeks(){
 }
 function weekRows(week, agence){
   const out = [];
-  for (const w of allWeeks()) if (w.week === week && (!agence || w.agence === agence)) for (const r of w.rows) out.push({...r, agence:w.agence, week:w.week});
+  for (const w of allWeeks()) if (w.week === week && (!agence || w.agence === agence)) for (const r of w.rows) out.push({...r, agence:w.agence, week:w.week, fichier:w.fichier});
   return out;
 }
 const uniqSorted = (arr) => [...new Set(arr)].filter(Boolean).sort((a,b)=>a.localeCompare(b,'fr'));
@@ -367,6 +393,7 @@ function finStatus(r, days){
 }
 
 function renderMain(wr){
+  editIndex.clear();
   const days = weekDays(F.week);
   const today = new Date();
   const vis = wr.filter(rowVisible);
@@ -408,7 +435,9 @@ function renderMain(wr){
   // planning par client
   h += `<div class="sec-h"><div><h2>Intérimaires par client</h2><div class="sub">${clients.length} client(s) · ${vis.length} intérimaire(s) · ${hfmt(tot)}</div></div></div>`;
   if (!clients.length) h += `<div class="card empty">Aucun intérimaire ne correspond aux filtres.</div>`;
-  const colg = `<colgroup><col style="width:15%"><col style="width:12%"><col style="width:5%"><col style="width:11%"><col style="width:7%"><col style="width:10%">${days.map(()=>'<col style="width:4.4%">').join('')}<col style="width:6%"><col style="width:5%"></colgroup>`;
+  const colg = editMode
+    ? `<colgroup><col style="width:13%"><col style="width:11%"><col style="width:5%"><col style="width:11%"><col style="width:9.6%"><col style="width:9.6%">${days.map(()=>'<col style="width:4.4%">').join('')}<col style="width:5%"><col style="width:4.4%"></colgroup>`
+    : `<colgroup><col style="width:15%"><col style="width:12%"><col style="width:5%"><col style="width:11%"><col style="width:7%"><col style="width:10%">${days.map(()=>'<col style="width:4.4%">').join('')}<col style="width:6%"><col style="width:5%"></colgroup>`;
   const head = `<thead><tr><th>Intérimaire</th><th>Métier</th><th>Contrat</th><th>VM / commentaire</th><th>Début</th><th>Fin</th>${days.map((d,i)=>`<th class="d" ${sameDay(d,today)?'style="color:var(--accent)"':''}>${JOURS[i]}<br><span class="muted" style="font-weight:400">${d.getDate()}/${String(d.getMonth()+1).padStart(2,'0')}</span></th>`).join('')}<th class="n">Total</th><th class="n">ETP</th></tr></thead>`;
   for (const c of clients){
     const rs = byClient.get(c.name);
@@ -420,9 +449,19 @@ function renderMain(wr){
       <table class="pl">${colg}${head}<tbody>${rs.map(r=>{
         const fs = finStatus(r, days);
         const vmc = [r.vm, r.commentaire].filter(Boolean).join(' · ');
-        const cells = r.days.map((v,i)=>`<td class="d">${v==null?'<span class="hc off">·</span>':v===0?'<span class="hc off">0</span>':`<span class="hc ${v>=9?'big':'on'}">${nf1.format(v)}</span>`}</td>`).join('');
+        const ed = editMode && canEdit(r);
+        const fk = f => `${r.fichier}|${r.ref.sheet}|${r.ref.row}|${f}`;
+        const inp = (f, val, cls, ph) => `<input class="ed ${cls||''} ${fk(f)===lastSavedFk?'saved':''}" data-fk="${esc(fk(f))}" data-f="${f}" value="${esc(val)}" ${ph?`placeholder="${esc(ph)}"`:''} ${cls==='num'?'inputmode="decimal"':''} autocomplete="off">`;
+        const dinp = (f, d) => `<input type="date" class="ed date ${fk(f)===lastSavedFk?'saved':''}" data-fk="${esc(fk(f))}" data-f="${f}" value="${d?isoDate(d):''}">`;
+        if (ed) editIndex.set(`${r.fichier}|${r.ref.sheet}|${r.ref.row}`, r);
+        const cells = r.days.map((v,i)=> ed ? `<td class="d">${inp('d'+i, v==null?'':String(v).replace('.',','), 'num')}</td>`
+          : `<td class="d">${v==null?'<span class="hc off">·</span>':v===0?'<span class="hc off">0</span>':`<span class="hc ${v>=9?'big':'on'}">${nf1.format(v)}</span>`}</td>`).join('');
         const mobileDays = `<td class="days">${r.days.map((v,i)=>v?`<span class="hc ${v>=9?'big':'on'}" title="${JOURS[i]}">${JOURS[i][0]} ${nf1.format(v)}</span>`:'').join('') || '<span class="muted">aucune heure</span>'}</td>`;
         const diff = r.fileTot != null && Math.abs(r.fileTot - r.total) > 0.01 ? `<div class="fileWarn">fichier : ${nf1.format(r.fileTot)} h</div>` : '';
+        if (ed) return `<tr class="editing"><td data-l="Intérimaire"><span class="nm">${esc(r.nom)}</span></td><td data-l="Métier">${inp('metier', r.metier, '', 'Métier')}</td><td data-l="Contrat">${inp('contrat', r.contrat)}</td>
+          <td data-l="VM / commentaire">${r.ref.cols.vm>=0?inp('vm', r.vm, '', 'VM'):''}${r.ref.cols.commentaire>=0?inp('commentaire', r.commentaire, 'mt', 'Commentaire'):''}</td>
+          <td data-l="Début">${r.ref.cols.debut>=0?dinp('debut', r.debut):''}</td><td data-l="Fin">${r.ref.cols.fin>=0?dinp('fin', r.fin):''}${fs?`<br><span class="badge ${fs.cls}">${fs.txt}</span>`:''}</td>
+          ${cells}${mobileDays}<td class="n" data-l="Total"><b>${nf1.format(r.total)}</b></td><td class="n" data-l="ETP">${nf2.format(r.total/HEBDO)}</td></tr>`;
         return `<tr><td data-l="Intérimaire"><span class="nm">${esc(r.nom)}</span></td><td data-l="Métier" class="small">${esc(r.metier)}</td><td data-l="Contrat" class="small">${esc(r.contrat)}</td>
           <td data-l="VM / commentaire" class="small">${esc(vmc)}</td><td data-l="Début" class="small">${fdate(r.debut)}</td>
           <td data-l="Fin" class="small">${fdate(r.fin)}${fs?`<br><span class="badge ${fs.cls}">${fs.txt}</span>`:''}</td>
@@ -452,7 +491,11 @@ function renderMain(wr){
         <tr><td>ETP</td>${wks.map(k=>`<td class="${k===F.week?'cur':''}">${nf2.format(names.reduce((s,n)=>s+(per.get(n)[k]||0),0)/HEBDO)}</td>`).join('')}</tr>
         <tr><td>Intérimaires</td>${wks.map(k=>`<td class="${k===F.week?'cur':''}">${nbInt[k]||0}</td>`).join('')}</tr></tfoot></table></section>`;
   }
+  // garder le focus et la sélection sur la cellule en cours de saisie
+  const ae = document.activeElement, keepFk = ae && ae.dataset && ae.dataset.fk;
+  const selS = keepFk && ae.type !== 'date' ? ae.selectionStart : null, selE = keepFk && ae.type !== 'date' ? ae.selectionEnd : null;
   $('main').innerHTML = h;
+  if (keepFk){ const el = document.querySelector(`[data-fk="${CSS.escape(keepFk)}"]`); if (el){ el.focus({preventScroll:true}); if (selS != null) try{ el.setSelectionRange(selS, selE); }catch(e){} } }
 }
 
 /* =================== surveillance du dossier =================== */
@@ -466,7 +509,7 @@ async function kvGet(k){ try{ const db = await idb(); return await new Promise((
 async function listFolder(dir, prefix='', out=[]){
   for await (const [name, h] of dir.entries()){
     if (name.startsWith('~$') || name.startsWith('.')) continue;
-    if (h.kind === 'directory') await listFolder(h, prefix+name+'/', out);
+    if (h.kind === 'directory'){ if (!name.startsWith('_')) await listFolder(h, prefix+name+'/', out); continue; }
     else if (EXT.test(name)) out.push({name: prefix+name, handle: h});
   }
   return out;
@@ -505,7 +548,7 @@ async function sync(){
       }
       if (!retry) lastSig = sig;
       datasets = [...cache].sort((a,b)=>a[0].localeCompare(b[0],'fr')).map(([name,c])=>({name, ...c}));
-      if (changed){ lastChange = `dernier changement à ${new Date().toLocaleTimeString('fr-FR')}`; render(); }
+      if (changed){ lastChange = `dernier changement à ${new Date().toLocaleTimeString('fr-FR')}`; if (isTyping()) pendingRender = true; else render(); }
     }
     setLive(dirHandle ? 'ok' : snapshotFiles ? 'snap' : (manual.size ? 'manual' : 'none'));
   }catch(e){ setLive('lost'); }
@@ -543,6 +586,222 @@ async function restoreFolder(){
 }
 function addFiles(files){ for (const f of files) manual.set(f.name, f); lastSig=''; sync(); }
 
+/* =================== modification du planning (écriture dans le fichier Excel) =================== */
+// Principe : on ne réécrit JAMAIS tout le classeur (on perdrait couleurs, formules, listes déroulantes…).
+// À chaque changement : relecture du fichier le plus récent, contrôle que la ligne est toujours la même
+// (nom de l'intérimaire), modification de la seule cellule concernée dans le XML de l'onglet,
+// mise à jour des totaux de la ligne, et Excel recalcule le reste à l'ouverture.
+let editMode = false, lastSavedFk = '', pendingRender = false;
+const editIndex = new Map();                 // "fichier|onglet|ligne" -> ligne affichée
+const undoStack = [];
+const backedUp = new Set();
+let saveChain = Promise.resolve();
+
+const isoDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const canEdit = r => !!(dirHandle && r.fichier && !r.fichier.startsWith('(ajouté)') && r.ref);
+const colLetter = c => { let s = ''; c++; while (c > 0){ const m = (c-1) % 26; s = String.fromCharCode(65+m) + s; c = Math.floor((c-1)/26); } return s; };
+const colIndex = L => [...L].reduce((n,ch)=>n*26 + ch.charCodeAt(0)-64, 0) - 1;
+const xmlEsc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const xmlUnesc = s => String(s).replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&');
+const dateToSerial = d => Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899,11,30)) / 864e5);
+const isTyping = () => { const a = document.activeElement; return !!(a && a.classList && a.classList.contains('ed') && a.value !== a.defaultValue); };
+function editMsg(txt, kind){ const el = $('editMsg'); el.textContent = txt; el.className = 'msg' + (kind ? ' ' + kind : ''); }
+
+async function fileHandleByPath(path){
+  const parts = path.split('/'); let d = dirHandle;
+  for (const p of parts.slice(0,-1)) d = await d.getDirectoryHandle(p);
+  return d.getFileHandle(parts[parts.length-1]);
+}
+async function sheetXmlPath(zip, sheetName){
+  const wb = await zip.file('xl/workbook.xml').async('string');
+  let rid = null;
+  for (const m of wb.matchAll(/<sheet\b[^>]*>/g)){
+    const nm = /\bname="([^"]*)"/.exec(m[0]), id = /\br:id="([^"]*)"/.exec(m[0]);
+    if (nm && id && xmlUnesc(nm[1]) === sheetName){ rid = id[1]; break; }
+  }
+  if (!rid) throw new Error(`onglet « ${sheetName} » introuvable`);
+  const rels = await zip.file('xl/_rels/workbook.xml.rels').async('string');
+  for (const m of rels.matchAll(/<Relationship\b[^>]*>/g)){
+    if (new RegExp(`\\bId="${rid}"`).test(m[0])){
+      const tg = /\bTarget="([^"]*)"/.exec(m[0])[1];
+      return tg.startsWith('/') ? tg.slice(1) : 'xl/' + tg.replace(/^\.\//,'');
+    }
+  }
+  throw new Error('relation d\'onglet introuvable');
+}
+// construit l'élément <c> d'une cellule en conservant son style
+function cellXml(ref, style, val){
+  const s = style ? ` s="${style}"` : '';
+  if (val.kind === 'empty') return `<c r="${ref}"${s}/>`;
+  if (val.kind === 'num') return `<c r="${ref}"${s}><v>${val.v}</v></c>`;
+  return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${xmlEsc(val.v)}</t></is></c>`;
+}
+// remplace (ou insère à sa place) une cellule dans le XML d'un onglet
+function setCellInSheet(xml, ref, val, opts = {}){
+  const rowNum = +/\d+$/.exec(ref)[0];
+  const rowRe = new RegExp(`<row\\b[^>]*?\\br="${rowNum}"[^>]*?(?:/>|>[\\s\\S]*?</row>)`);
+  const m = rowRe.exec(xml);
+  if (!m) throw new Error(`ligne ${rowNum} introuvable dans le fichier`);
+  let row = m[0];
+  const cellRe = new RegExp(`<c\\b[^>]*?\\br="${ref}"[^>]*?(?:/>|>[\\s\\S]*?</c>)`);
+  const cm = cellRe.exec(row);
+  if (cm){
+    const st = /\bs="(\d+)"/.exec(cm[0]);
+    if (/<f[\s>/]/.test(cm[0]) && !opts.formulaCache) throw new Error(`la cellule ${ref} contient une formule : elle n'est pas modifiable ici`);
+    if (opts.formulaCache){
+      if (!/<f[\s>/]/.test(cm[0])) return xml;                              // valeur saisie à la main : on n'y touche pas
+      let c = cm[0].replace(/^<c\b[^>]*>/, tag => tag.replace(/\st="[^"]*"/, ''));
+      c = /<v>[^<]*<\/v>/.test(c) ? c.replace(/<v>[^<]*<\/v>/, `<v>${val.v}</v>`) : c.replace(/(<f\b[^>]*\/>|<\/f>)/, `$1<v>${val.v}</v>`);
+      row = row.replace(cm[0], c);
+    } else row = row.replace(cm[0], cellXml(ref, st && st[1], val));
+  } else {
+    if (opts.formulaCache) return xml;
+    // cellule absente : on l'insère dans l'ordre des colonnes, avec le style de la cellule du dessus si possible
+    const col = colIndex(/^[A-Z]+/.exec(ref)[0]);
+    let style = null;
+    for (let k = rowNum - 1; k >= Math.max(1, rowNum - 15) && style == null; k--){
+      const up = new RegExp(`<c\\b[^>]*?\\br="${/^[A-Z]+/.exec(ref)[0]}${k}"[^>]*?\\bs="(\\d+)"`).exec(xml);
+      if (up) style = up[1];
+    }
+    const nc = cellXml(ref, style, val);
+    if (/\/>$/.test(row) && !/<\/row>$/.test(row)) row = row.replace(/\/>$/, `>${nc}</row>`);
+    else {
+      let placed = false;
+      row = row.replace(/<c\b[^>]*?\br="([A-Z]+)\d+"/g, (all, L) => { if (!placed && colIndex(L) > col){ placed = true; return nc + all; } return all; });
+      if (!placed) row = row.replace(/<\/row>$/, nc + '</row>');
+    }
+  }
+  return xml.slice(0, m.index) + row + xml.slice(m.index + m[0].length);
+}
+const readCellVal = cell => {
+  if (!cell || cell.v == null || cell.v === '') return {kind:'empty'};
+  if (typeof cell.v === 'number') return {kind:'num', v: cell.v};
+  return {kind:'text', v: String(cell.v)};
+};
+
+// convertit la saisie d'un champ en valeur de cellule
+function parseInput(field, raw){
+  raw = String(raw ?? '').trim();
+  if (/^d\d$/.test(field)){
+    if (raw === '') return {kind:'empty'};
+    const n = +raw.replace(',', '.').replace(/\s*h$/i,'');
+    if (!isFinite(n) || n < 0 || n > 24) throw new Error('heures attendues entre 0 et 24');
+    return {kind:'num', v: Math.round(n*100)/100};
+  }
+  if (field === 'debut' || field === 'fin'){
+    if (raw === '') return {kind:'empty'};
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw); if (!m) throw new Error('date invalide');
+    return {kind:'num', v: dateToSerial(new Date(+m[1], +m[2]-1, +m[3]))};
+  }
+  return raw === '' ? {kind:'empty'} : {kind:'text', v: raw};
+}
+function currentVal(r, f){
+  if (/^d\d$/.test(f)){ const v = r.days[+f.slice(1)]; return v == null ? {kind:'empty'} : {kind:'num', v}; }
+  if (f === 'debut' || f === 'fin') return r[f] ? {kind:'num', v: dateToSerial(r[f])} : {kind:'empty'};
+  return r[f] ? {kind:'text', v: r[f]} : {kind:'empty'};
+}
+const sameVal = (a, b) => a.kind === b.kind && (a.kind === 'empty' || String(a.v) === String(b.v));
+const lastQueued = new Map();
+const fieldCol = (cols, field) => /^d\d$/.test(field) ? cols.days[+field.slice(1)] : cols[field];
+
+async function backupOnce(path, bytes){
+  if (backedUp.has(path)) return;
+  const dir = await dirHandle.getDirectoryHandle('_sauvegardes', {create:true});
+  const now = new Date(), stamp = `${isoDate(now)} ${String(now.getHours()).padStart(2,'0')}h${String(now.getMinutes()).padStart(2,'0')}`;
+  const base = path.split('/').pop().replace(/\.(xlsx|xlsm|xls)$/i, '');
+  const fh = await dir.getFileHandle(`${base} - avant modification ${stamp}.xlsx`, {create:true});
+  const w = await fh.createWritable(); await w.write(bytes); await w.close();
+  backedUp.add(path);
+}
+
+// écrit une valeur dans le fichier ; renvoie l'ancienne valeur (pour « Annuler »)
+async function writeCell(target, field, val){
+  const {fichier, ref, nom} = target;
+  const fh = await fileHandleByPath(fichier);
+  let file;
+  try { file = await fh.getFile(); } catch(e){ throw new Error('fichier illisible (ouvert dans Excel ?)'); }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  // 1. la ligne désigne-t-elle toujours le même intérimaire ?
+  const wb = XLSX.read(bytes, {type:'array', sheets:[ref.sheet]});
+  const ws = wb.Sheets[ref.sheet];
+  if (!ws) throw new Error(`onglet « ${ref.sheet} » introuvable`);
+  const at = c => ws[XLSX.utils.encode_cell({r: ref.row - 1, c})];
+  if (clean(at(ref.cols.nom) && at(ref.cols.nom).v) !== nom) throw new Error('le planning a été modifié entre-temps (lignes déplacées) : la page vient d\'être rechargée, recommence la saisie');
+  const col = fieldCol(ref.cols, field);
+  if (col == null || col < 0) throw new Error('colonne introuvable');
+  const old = readCellVal(at(col));
+  // 2. modification ciblée du XML
+  const zip = await JSZip.loadAsync(bytes, {createFolders:false});   // pas d'entrées « dossier » ajoutées à l'archive
+  const path = await sheetXmlPath(zip, ref.sheet);
+  let xml = await zip.file(path).async('string');
+  xml = setCellInSheet(xml, colLetter(col) + ref.row, val);
+  if (/^d\d$/.test(field)){                                    // totaux de la ligne (formules SUM et /35)
+    const days = ref.cols.days.map((c,i) => 'd'+i === field ? (val.kind==='num' ? val.v : 0) : ((v => typeof v === 'number' ? v : 0)(at(c) && at(c).v)));
+    const tot = Math.round(days.reduce((s,v)=>s+v,0)*100)/100;
+    if (ref.cols.tot >= 0) xml = setCellInSheet(xml, colLetter(ref.cols.tot) + ref.row, {kind:'num', v: tot}, {formulaCache:true});
+    if (ref.cols.etp >= 0) xml = setCellInSheet(xml, colLetter(ref.cols.etp) + ref.row, {kind:'num', v: tot/HEBDO}, {formulaCache:true});
+  }
+  zip.file(path, xml, {createFolders:false});
+  // 3. Excel recalcule les totaux du classeur à l'ouverture
+  let wbx = await zip.file('xl/workbook.xml').async('string');
+  if (/<calcPr\b/.test(wbx)){ if (!/fullCalcOnLoad=/.test(wbx)) wbx = wbx.replace(/<calcPr\b/, '<calcPr fullCalcOnLoad="1"'); }
+  else wbx = wbx.replace(/(<\/definedNames>|<\/sheets>)(?![\s\S]*<\/definedNames>)/, '$1<calcPr fullCalcOnLoad="1"/>');
+  zip.file('xl/workbook.xml', wbx, {createFolders:false});
+  const out = await zip.generateAsync({type:'uint8array', compression:'DEFLATE', compressionOptions:{level:6}});
+  // 4. sauvegarde (une fois par session) puis écriture
+  await backupOnce(fichier, bytes);
+  try {
+    const w = await fh.createWritable(); await w.write(out); await w.close();
+  } catch(e){
+    throw new Error(/NoModification|InvalidState|NotReadable|lock/i.test(e.name + e.message) ? 'fichier ouvert dans Excel ou verrouillé : ferme-le puis recommence' : 'écriture refusée : ' + e.message);
+  }
+  // 5. mettre à jour la page sans attendre la surveillance
+  const nf = await fh.getFile();
+  const res = parsePlanning(out, fichier);
+  cache.set(fichier, {sig: nf.lastModified + ':' + nf.size, mtime: nf.lastModified, ...res, error: ''});
+  datasets = [...cache].sort((a,b)=>a[0].localeCompare(b[0],'fr')).map(([name,c])=>({name, ...c}));
+  return old;
+}
+
+const FIELD_LABEL = f => /^d\d$/.test(f) ? null : ({metier:'métier', contrat:'contrat', vm:'VM', commentaire:'commentaire', debut:'date de début', fin:'date de fin'})[f];
+function describe(r, field, val){
+  if (/^d\d$/.test(field)){ const d = weekDays(r.week)[+field.slice(1)]; return `${r.nom} · ${JOURS[+field.slice(1)]} ${d.getDate()}/${String(d.getMonth()+1).padStart(2,'0')} : ${val.kind==='empty' ? 'vide' : nf1.format(val.v) + ' h'}`; }
+  const shown = val.kind === 'empty' ? 'vide' : (field==='debut'||field==='fin') ? fdate(toDate(val.v)) : `« ${val.v} »`;
+  return `${r.nom} · ${FIELD_LABEL(field)} : ${shown}`;
+}
+function queueSave(r, field, val, isUndo){
+  editMsg('Enregistrement…', 'busy');
+  saveChain = saveChain.then(async () => {
+    try {
+      const old = await writeCell(r, field, val);
+      if (!isUndo) undoStack.push({r, field, val: old});
+      else lastQueued.set(`${r.fichier}|${r.ref.sheet}|${r.ref.row}|${field}`, val);
+      $('undoBtn').hidden = !undoStack.length;
+      lastSavedFk = `${r.fichier}|${r.ref.sheet}|${r.ref.row}|${field}`;
+      editMsg(`${isUndo ? 'Annulé' : 'Enregistré'} dans ${r.fichier.split('/').pop()} à ${new Date().toLocaleTimeString('fr-FR')} — ${describe(r, field, val)}`, 'ok');
+      if (isTyping()) pendingRender = true; else render();
+    } catch(e){
+      lastQueued.delete(`${r.fichier}|${r.ref.sheet}|${r.ref.row}|${field}`);
+      editMsg('Non enregistré : ' + e.message, 'err');
+      lastSig = ''; await sync(); render();
+    }
+  });
+  return saveChain;
+}
+
+async function toggleEdit(){
+  if (editMode){ editMode = false; $('editBtn').classList.remove('on'); $('editBtn').textContent = '✎ Modifier le planning'; editMsg(''); render(); return; }
+  if (!FS_OK){ editMsg('La modification nécessite Edge ou Chrome.', 'err'); return; }
+  if (!dirHandle){ editMsg('Choisis d\'abord le dossier du planning (« Choisir le dossier des plannings ») : un fichier ajouté à la main ne peut pas être modifié.', 'err'); return; }
+  let perm = 'denied';
+  try { perm = await dirHandle.requestPermission({mode:'readwrite'}); } catch(e){}
+  if (perm !== 'granted'){ editMsg('Autorisation d\'écriture refusée par le navigateur.', 'err'); return; }
+  editMode = true;
+  $('editBtn').classList.add('on'); $('editBtn').textContent = '✓ Terminer les modifications';
+  editMsg('Mode modification : chaque changement est enregistré directement dans le fichier Excel (sauvegarde dans « _sauvegardes » avant la 1re modification).', 'busy');
+  render();
+}
+
 /* =================== événements =================== */
 $('fWeek').onchange = e => { F.week = e.target.value; F.client=''; render(); };
 $('fAgence').onchange = e => { F.agence = e.target.value; F.client=''; render(); };
@@ -559,13 +818,36 @@ $('refreshBtn').onclick = () => $('dirInput').click();
 $('addBtn').onclick = () => $('fileInput').click();
 $('fileInput').onchange = e => { addFiles([...e.target.files]); e.target.value=''; };
 $('dirInput').onchange = e => { snapshotFiles = [...e.target.files]; dirHandle = null; lastSig=''; cache.clear(); $('folder').textContent = (snapshotFiles[0]?.webkitRelativePath||'').split('/')[0] || 'dossier'; e.target.value=''; sync(); };
-$('pdfBtn').onclick = () => { render(); setTimeout(() => window.print(), 50); };
+$('pdfBtn').onclick = () => { const em = editMode; editMode = false; render(); setTimeout(() => { window.print(); editMode = em; render(); }, 50); };
 $('themeBtn').onclick = () => {
   const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   document.documentElement.dataset.theme = cur==='dark' ? 'light' : 'dark';
   try{ localStorage.setItem('stats-theme', document.documentElement.dataset.theme); }catch(e){}
 };
 try{ const t = localStorage.getItem('stats-theme'); if (t) document.documentElement.dataset.theme = t; }catch(e){}
+$('editBtn').onclick = toggleEdit;
+$('undoBtn').onclick = () => { const u = undoStack.pop(); $('undoBtn').hidden = !undoStack.length; if (u) queueSave(u.r, u.field, u.val, true); };
+document.addEventListener('input', e => { const t = e.target; if (t.classList && t.classList.contains('ed')) t.classList.toggle('dirty', t.value !== t.defaultValue); });
+document.addEventListener('change', e => {
+  const t = e.target; if (!t.classList || !t.classList.contains('ed')) return;
+  const [fichier, sheet, row] = t.dataset.fk.split('|'), r = editIndex.get(`${fichier}|${sheet}|${row}`);
+  if (!r) return;
+  let val; try { val = parseInput(t.dataset.f, t.value); } catch(err){ editMsg(`${r.nom} : ${err.message}`, 'err'); t.focus(); return; }
+  t.defaultValue = t.value; t.classList.remove('dirty');
+  const key = t.dataset.fk, prevQ = lastQueued.get(key);
+  if (prevQ ? sameVal(prevQ, val) : sameVal(currentVal(r, t.dataset.f), val)) return;   // rien n'a changé
+  lastQueued.set(key, val);
+  queueSave(r, t.dataset.f, val);
+});
+document.addEventListener('keydown', e => {
+  const t = e.target; if (!t.classList || !t.classList.contains('ed')) return;
+  if (e.key === 'Enter'){                        // Entrée : valider et passer au champ suivant
+    e.preventDefault();
+    const all = [...document.querySelectorAll('input.ed')], i = all.indexOf(t);
+    (all[i+1] || t).focus(); if (all[i+1] && all[i+1].select) all[i+1].select();
+  } else if (e.key === 'Escape'){ t.value = t.defaultValue; t.classList.remove('dirty'); t.blur(); }
+});
+document.addEventListener('focusout', () => { setTimeout(() => { if (pendingRender && !isTyping()){ pendingRender = false; render(); } }, 0); });
 const drop = $('drop');
 ['dragenter','dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave','drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev==='drop' || !e.relatedTarget) drop.classList.remove('over'); }));

@@ -59,6 +59,12 @@ Lit le planning Excel de l'agence (ex. `Planning_agence_DAX.xlsx`) : chaque **on
 - **Alertes** : fin de contrat dans la semaine, fin de contrat dépassée.
 - **Contrôles** : les totaux sont recalculés à partir des heures saisies jour par jour ; un écart avec la colonne « T He » du fichier est signalé. La semaine est prise dans le nom de l'onglet (un en-tête de dates non mis à jour est signalé).
 - **Export PDF** (A4 paysage). Dossier surveillé : la page se met à jour à chaque enregistrement du fichier.
+- **Modifier le planning depuis la page** (Edge / Chrome, dossier choisi) : bouton « ✎ Modifier le planning » → heures par jour, dates de début / fin, métier, contrat, VM, commentaire deviennent modifiables ; **chaque changement est écrit aussitôt dans le fichier Excel**.
+  - Seule la cellule modifiée est réécrite : mise en forme, couleurs, formules, listes déroulantes et autres onglets restent intacts ; les totaux de la ligne sont mis à jour et Excel recalcule le classeur à l'ouverture.
+  - Avant la première modification, une copie du fichier est enregistrée dans le sous-dossier `_sauvegardes`. Bouton « ↶ Annuler la dernière modification ».
+  - Si le fichier a changé entre-temps (lignes déplacées par un collègue), rien n'est écrit : la page se recharge. Si le fichier est ouvert dans Excel (verrouillé), un message le signale.
+  - Avec un dossier **SharePoint synchronisé par OneDrive**, la modification est synchronisée et apparaît chez les collègues qui surveillent le même dossier. Éviter d'éditer en même temps dans Excel et dans la page (OneDrive créerait une copie en conflit).
+  - Ajouter ou supprimer un intérimaire / un client se fait toujours dans Excel.
 
 ## Confidentialité
 
@@ -93,6 +99,7 @@ planning.html               l'outil Planning
 export-marges-pptx.js       génération de la présentation PowerPoint (marges)
 vendor/xlsx.full.min.js     SheetJS Community Edition 0.18.5 (lecture des fichiers Excel, licence Apache-2.0)
 vendor/pptxgen.bundle.js    PptxGenJS 3.12.0 (création du .pptx, licence MIT)
+vendor/jszip.min.js         JSZip 3.10.1 (modification ciblée du .xlsx du planning, licence MIT)
 ```
 
 ## Publication (GitHub Pages)
