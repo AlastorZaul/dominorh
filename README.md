@@ -4,6 +4,7 @@ Deux outils, dans le navigateur, sans installation :
 
 - **Actions commerciales** (`index.html`) — actions par agence, commercial, semaine (exports Excel)
 - **Marges & ETP** (`marges.html`) — CA, marge, ETP par dossier, commercial et agence (exports CSV de marges)
+- **Planning** (`planning.html`) — intérimaires par client et par semaine (planning Excel hebdomadaire)
 
 Tableau de bord des actions commerciales **par agence et par commercial**, construit à partir des exports Excel (tableau croisé : *Type d'action → Agence → Commercial → Candidat/Client → Cible → année*).
 
@@ -46,6 +47,19 @@ Un filtre **Semaine** et un graphique **Évolution par semaine** (cliquable) per
 - **Exports** : **PDF** (impression A4 paysage, « Enregistrer au format PDF ») et **PowerPoint** (.pptx, graphiques natifs + tableaux, une fiche par agence).
 - Même fonctionnement que l'autre outil : dossier surveillé (Edge / Chrome), fichiers ponctuels, une ligne identique présente dans deux fichiers n'est comptée qu'une fois.
 
+## Planning (`planning.html`)
+
+👉 **https://alastorzaul.github.io/dominorh/planning.html**
+
+Lit le planning Excel de l'agence (ex. `Planning_agence_DAX.xlsx`) : chaque **onglet de semaine** (`S42`, `S43`…) avec une ligne par client, puis ses intérimaires et leurs heures du lundi au dimanche. Les autres onglets (Besoins, KPI, anciens plannings `s38`…) sont ignorés.
+
+- **Clients retenus** : seuls les clients dont la colonne **« Client » contient 1** ; les autres sont exclus avec leurs intérimaires (liste affichée, case « Afficher les clients exclus » pour les voir grisés).
+- **Filtres** : semaine (‹ ›), agence (si plusieurs fichiers), client, métier, recherche.
+- **Affichage** : intérimaires regroupés par client — métier, contrat, VM / commentaire, début, fin, heures par jour, total, ETP (heures / 35) ; heures par jour de la semaine ; évolution des heures par client d'une semaine à l'autre.
+- **Alertes** : fin de contrat dans la semaine, fin de contrat dépassée.
+- **Contrôles** : les totaux sont recalculés à partir des heures saisies jour par jour ; un écart avec la colonne « T He » du fichier est signalé. La semaine est prise dans le nom de l'onglet (un en-tête de dates non mis à jour est signalé).
+- **Export PDF** (A4 paysage). Dossier surveillé : la page se met à jour à chaque enregistrement du fichier.
+
 ## Confidentialité
 
 - **Les exports ne quittent jamais le poste.** Ils sont lus directement par le navigateur ; GitHub ne sert que la page, vide de toute donnée.
@@ -75,6 +89,7 @@ Télécharger le dépôt (**Code → Download ZIP**), le dézipper et ouvrir `in
 index.html                  l'application (HTML + CSS + JS, sans build)
 export-pptx.js              génération de la présentation PowerPoint (actions)
 marges.html                 l'outil Marges & ETP
+planning.html               l'outil Planning
 export-marges-pptx.js       génération de la présentation PowerPoint (marges)
 vendor/xlsx.full.min.js     SheetJS Community Edition 0.18.5 (lecture des fichiers Excel, licence Apache-2.0)
 vendor/pptxgen.bundle.js    PptxGenJS 3.12.0 (création du .pptx, licence MIT)

@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Planning intérimaires</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='1' y='2' width='14' height='13' rx='2' fill='none' stroke='%232a78d6' stroke-width='1.5'/><rect x='1' y='2' width='14' height='4' rx='1' fill='%232a78d6'/><rect x='4' y='8' width='3' height='2' fill='%232a78d6'/><rect x='9' y='8' width='3' height='2' fill='%23eb6834'/><rect x='4' y='11.5' width='3' height='2' fill='%232a78d6'/></svg>">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f4f3f0; --surface:#fcfcfb; --surface-2:#f0efec; --border:#e2e0da; --grid:#ebe9e4;
+  --text:#0b0b0b; --text-2:#52514e; --muted:#85837d;
+  --accent:#2a78d6; --day:#cde2fb; --day-strong:#9ec5f4; --day-text:#0d366b;
+  --warn:#b25e00; --warn-bg:#fff1dc; --late:#c23a39; --late-bg:#fde6e5; --ok:#14865d;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#121211; --surface:#1a1a19; --surface-2:#232321; --border:#2f2f2c; --grid:#2a2a28;
+    --text:#f0efec; --text-2:#c3c2b7; --muted:#8d8c84;
+    --accent:#3987e5; --day:#173a66; --day-strong:#1c5cab; --day-text:#e6f0fc;
+    --warn:#f0a44b; --warn-bg:#3a2a12; --late:#f08080; --late-bg:#3d1f1f; --ok:#4cc999;
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#121211; --surface:#1a1a19; --surface-2:#232321; --border:#2f2f2c; --grid:#2a2a28;
+  --text:#f0efec; --text-2:#c3c2b7; --muted:#8d8c84;
+  --accent:#3987e5; --day:#173a66; --day-strong:#1c5cab; --day-text:#e6f0fc;
+  --warn:#f0a44b; --warn-bg:#3a2a12; --late:#f08080; --late-bg:#3d1f1f; --ok:#4cc999;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1320px;margin:0 auto;padding:20px 16px 60px}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-size:22px;margin:0;letter-spacing:-.01em}
+h2{font-size:15px;margin:0 0 2px}
+.sub{color:var(--text-2);font-size:13px}
+.muted{color:var(--muted)}
+nav.tabsnav{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+nav.tabsnav a{font-size:13px;color:var(--text-2);text-decoration:none;padding:4px 10px;border-radius:999px;border:1px solid var(--border)}
+nav.tabsnav a.on{background:var(--text);color:var(--surface);border-color:var(--text)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow)}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+button,select,input{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px}
+button{cursor:pointer}
+button:hover{background:var(--surface-2)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+select{min-width:120px;max-width:240px}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--text-2)}
+label.chk{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--text-2);align-self:flex-end;padding-bottom:6px}
+label.chk input{width:16px;height:16px;padding:0}
+code{font:12px ui-monospace,Menlo,Consolas,monospace;word-break:break-all}
+.drop{border:1.5px dashed var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.drop.over{border-color:var(--accent);background:var(--surface-2)}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:3px 10px;font-size:12px}
+.chip.err{border-color:var(--late);color:var(--late)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block}
+.dot.ok{background:#1baf7a}.dot.ko{background:#e34948}
+.filters{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0;margin:8px 0}
+.filters .card{padding:10px 14px}
+.weeknav{display:flex;align-items:flex-end;gap:4px}
+.weeknav button{padding:6px 9px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi .v{font-size:26px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .l{color:var(--text-2);font-size:12px}
+.kpi .s{color:var(--muted);font-size:12px;margin-top:2px}
+.kpi.warn .v{color:var(--warn)} .kpi.late .v{color:var(--late)}
+.sec{margin-bottom:16px}
+.sec-h{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.note{font-size:13px;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;margin-bottom:12px}
+.note b{color:var(--text)}
+/* charge par jour */
+.daysum{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end;height:130px}
+.ds{display:flex;flex-direction:column;justify-content:flex-end;height:100%;text-align:center}
+.ds .bar{background:var(--accent);border-radius:4px 4px 0 0;margin:0 auto;width:min(100%,46px);min-height:2px}
+.ds .v{font-size:12px;color:var(--text-2);font-variant-numeric:tabular-nums;margin-bottom:3px}
+.ds .l{font-size:12px;color:var(--text-2);border-top:1px solid var(--border);padding-top:4px}
+.ds.we .bar{opacity:.55}
+/* blocs client */
+.client{margin-bottom:14px;padding:0;overflow:hidden}
+.client.excl{opacity:.6}
+.client-h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;background:var(--surface-2);border-bottom:1px solid var(--border)}
+.client-h .name{font-weight:650;font-size:15px}
+.client-h .stats{display:flex;gap:16px;font-size:13px;color:var(--text-2);font-variant-numeric:tabular-nums;flex-wrap:wrap}
+.client-h .stats b{color:var(--text)}
+.badge{display:inline-block;font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.badge.late{background:var(--late-bg);color:var(--late)}
+.badge.mute{background:var(--surface);color:var(--muted);border:1px solid var(--border)}
+table.pl{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}
+table.pl th,table.pl td{padding:6px 6px;border-bottom:1px solid var(--grid);vertical-align:middle;overflow-wrap:anywhere}
+table.pl th{font-size:11.5px;font-weight:600;color:var(--text-2);text-align:left;background:var(--surface)}
+table.pl th.d,table.pl td.d{text-align:center;padding:4px 2px}
+table.pl td.n,table.pl th.n{text-align:right;font-variant-numeric:tabular-nums}
+table.pl tr:last-child td{border-bottom:0}
+table.pl tbody tr:hover td{background:var(--surface-2)}
+.hc{display:inline-block;min-width:30px;padding:3px 0;border-radius:6px;font-variant-numeric:tabular-nums;font-size:12.5px;font-weight:600}
+.hc.on{background:var(--day);color:var(--day-text)}
+.hc.big{background:var(--day-strong);color:var(--day-text)}
+.hc.off{color:var(--muted);font-weight:400}
+.nm{font-weight:600}
+.small{font-size:12px;color:var(--text-2)}
+.fileWarn{font-size:11px;color:var(--warn)}
+/* évolution */
+table.evo{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}
+table.evo th,table.evo td{padding:6px 8px;border-bottom:1px solid var(--grid);text-align:right;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+table.evo th:first-child,table.evo td:first-child{text-align:left}
+table.evo th{font-size:12px;color:var(--text-2)}
+table.evo th.cur{color:var(--accent)}
+table.evo td.cur{background:var(--surface-2);font-weight:600}
+table.evo tfoot td{font-weight:650;border-top:1px solid var(--border);border-bottom:0}
+.empty{color:var(--muted);padding:24px;text-align:center}
+.print-only{display:none}
+@media (max-width:860px){
+  table.pl thead{display:none}
+  table.pl,table.pl tbody,table.pl tr,table.pl td{display:block;width:100%}
+  table.pl tr{padding:8px 12px;border-bottom:1px solid var(--grid)}
+  table.pl td{border:0;padding:2px 0}
+  table.pl td[data-l]::before{content:attr(data-l)" : ";color:var(--muted);font-size:12px}
+  table.pl td.days{display:flex;gap:4px;flex-wrap:wrap;padding:4px 0}
+  table.pl td.d{display:none}
+  table.pl td.n{text-align:left}
+  .daysum{height:110px;gap:4px}
+}
+@media (min-width:861px){ table.pl td.days{display:none} }
+@page{size:A4 landscape;margin:10mm}
+@media print{
+  :root,:root[data-theme="dark"]{color-scheme:light;--bg:#fff;--surface:#fff;--surface-2:#f4f3f0;--border:#d9d7d0;--grid:#e9e7e2;--text:#0b0b0b;--text-2:#52514e;--muted:#85837d;--accent:#2a78d6;--day:#cde2fb;--day-strong:#9ec5f4;--day-text:#0d366b;--warn:#b25e00;--warn-bg:#fff1dc;--late:#c23a39;--late-bg:#fde6e5;--shadow:none}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{font-size:10.5px}
+  .wrap{max-width:none;padding:0}
+  .no-print,.filters,nav.tabsnav,header.top .row{display:none!important}
+  .print-only{display:block}
+  .card{box-shadow:none}
+  .client{break-inside:avoid}
+  .kpis{grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:8px}
+  .kpi{padding:8px}.kpi .v{font-size:18px}
+  table.pl th,table.pl td{padding:3px 4px}
+  .hc{min-width:24px;padding:1px 0}
+  #evoSec{break-before:page}
+  #daySec{display:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="tabsnav no-print"><a href="index.html">Actions commerciales</a><a href="marges.html">Marges &amp; ETP</a><a href="planning.html" class="on">Planning</a></nav>
+  <header class="top">
+    <div>
+      <h1 id="title">Planning des intérimaires</h1>
+      <div class="sub" id="subtitle">Import des plannings hebdomadaires Excel</div>
+      <div class="print-only sub" id="printScope"></div>
+    </div>
+    <div class="row">
+      <button id="themeBtn">◐ Thème</button>
+      <button id="pdfBtn" class="primary">Exporter en PDF</button>
+    </div>
+  </header>
+
+  <div class="drop card no-print" id="drop">
+    <div style="flex:1;min-width:240px">
+      <div class="row" style="gap:8px"><span class="dot" id="liveDot"></span><b>Plannings Excel</b> <code id="folder" class="muted">aucun dossier</code></div>
+      <div class="sub" id="liveTxt">Chargement…</div>
+      <div class="row" id="files" style="margin-top:8px;gap:6px"></div>
+    </div>
+    <div class="row" style="align-items:flex-end">
+      <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls" multiple hidden>
+      <input type="file" id="dirInput" webkitdirectory multiple hidden>
+      <button class="primary" id="reconnectBtn" hidden>Reprendre la surveillance</button>
+      <button class="primary" id="pickBtn">Choisir le dossier des plannings</button>
+      <button id="refreshBtn" hidden>Actualiser</button>
+      <button id="addBtn">+ Fichier ponctuel</button>
+    </div>
+  </div>
+
+  <div class="filters">
+    <div class="card row">
+      <div class="weeknav"><button id="prevW" title="Semaine précédente">‹</button><label class="f">Semaine<select id="fWeek"></select></label><button id="nextW" title="Semaine suivante">›</button></div>
+      <label class="f" id="agWrap">Agence<select id="fAgence"></select></label>
+      <label class="f">Client<select id="fClient"></select></label>
+      <label class="f">Métier<select id="fMetier"></select></label>
+      <label class="f">Rechercher<input type="search" id="search" placeholder="Intérimaire, métier…" style="width:190px"></label>
+      <label class="chk"><input type="checkbox" id="showExcl"> Afficher les clients exclus (sans 1)</label>
+      <button id="clearBtn" style="align-self:flex-end">Réinitialiser</button>
+    </div>
+  </div>
+
+  <div id="main"></div>
+</div>
+
+<script src="vendor/xlsx.full.min.js"></script>
+<script>
+/* =================== utilitaires =================== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nf1 = new Intl.NumberFormat('fr-FR',{maximumFractionDigits:1});
+const nf2 = new Intl.NumberFormat('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:2});
+const hfmt = v => nf1.format(v) + ' h';
+const clean = v => v == null ? '' : String(v).replace(/[\u0000-\u001f\u007f-\u009f�]/g,'').replace(/\s+/g,' ').trim();
+const normH = s => clean(s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const lsGet = (k,d) => { try{ const v = localStorage.getItem(k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } };
+const lsSet = (k,v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+const MOIS = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const JOURS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+const HEBDO = 35;   // ETP hebdomadaire, comme la colonne « T In » du fichier (heures / 35)
+
+function isoWeek(date){
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = d.getUTCDay() || 7; d.setUTCDate(d.getUTCDate() + 4 - day);
+  const y = d.getUTCFullYear();
+  return {y, w: Math.ceil(((d - Date.UTC(y,0,1)) / 864e5 + 1) / 7)};
+}
+function weekMonday(y, w){ const j4 = new Date(y,0,4), day = j4.getDay() || 7; return new Date(y, 0, 4 - day + 1 + (w-1)*7); }
+const weekKey = (y,w) => `${y}-S${String(w).padStart(2,'0')}`;
+const parseWeekKey = k => { const m = /^(\d{4})-S(\d{2})$/.exec(k||''); return m ? {y:+m[1], w:+m[2]} : null; };
+function weekDays(k){ const p = parseWeekKey(k); const mon = weekMonday(p.y, p.w); return [...Array(7)].map((_,i)=>new Date(mon.getFullYear(), mon.getMonth(), mon.getDate()+i)); }
+function weekLabel(k, long){
+  const p = parseWeekKey(k); if (!p) return k;
+  const d = weekDays(k), a = d[0], b = d[6];
+  const range = `${a.getDate()}${a.getMonth()!==b.getMonth()?' '+MOIS[a.getMonth()]:''} – ${b.getDate()} ${MOIS[b.getMonth()]}`;
+  return long ? `S${p.w} ${p.y} · ${range}` : `S${p.w}`;
+}
+const fdate = d => d ? d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '';
+const sameDay = (a,b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+function toDate(v){
+  if (v instanceof Date && !isNaN(v)) return new Date(v.getFullYear(), v.getMonth(), v.getDate());
+  if (typeof v === 'number' && v > 20000 && v < 80000){ const d = new Date(Date.UTC(1899,11,30) + v*864e5); return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); }
+  const m = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/.exec(clean(v));
+  if (m){ const y = m[3].length===2 ? 2000 + +m[3] : +m[3]; return new Date(y, +m[2]-1, +m[1]); }
+  return null;
+}
+const toNum = v => { if (typeof v === 'number') return v; const s = clean(v).replace(',', '.'); return s && isFinite(+s) ? +s : null; };
+const hasOne = v => /(^|[^0-9])1([^0-9]|$)/.test(clean(v).replace(/\.0+$/,''));
+
+/* =================== lecture du planning Excel =================== */
+// Un onglet de planning : une ligne d'en-tête avec « METIER » et « Candidat » et 7 colonnes de dates (lun → dim).
+// En dessous : une ligne par client (colonne « Client » = 1 pour les clients comptés), puis ses intérimaires.
+function parsePlanning(buf, fileName){
+  const wb = XLSX.read(buf, {type:'array'});   // dates lues en numéro de série Excel : pas de décalage de fuseau horaire
+  const weeks = [], skipped = [], notes = [];
+  for (const sn of wb.SheetNames){
+    const grid = XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1, defval:null, raw:true});
+    const hi = grid.findIndex(r => r && r.some(c => normH(c)==='metier') && r.some(c => normH(c)==='candidat'));
+    if (hi < 0){ skipped.push(sn); continue; }
+    const H = grid[hi];
+    const col = name => H.findIndex(c => normH(c) === name);
+    const nameCol = H.findIndex(c => clean(c) !== '');
+    const agence = clean(H[nameCol]) || fileName.replace(/\.[^.]+$/,'');
+    const cMet = col('metier'), cCtr = H.findIndex(c => normH(c).startsWith('contrat')), cVm = col('vm'), cCom = H.findIndex(c => normH(c).startsWith('commentaire'));
+    const cCli = col('client'), cCand = col('candidat');
+    const dayCols = []; H.forEach((c,i) => { if (toDate(c) && dayCols.length < 7) dayCols.push(i); });
+    if (dayCols.length < 5){ skipped.push(sn); continue; }
+    const cTot = H.findIndex((c,i) => i > dayCols[dayCols.length-1] && /^the/.test(normH(c)));
+    const between = []; for (let i = cCand+1; i < dayCols[0]; i++) between.push(i);   // colonnes début / fin de contrat
+    const cDeb = between[0] ?? -1, cFin = between[1] ?? -1;
+    // semaine : nom de l'onglet (S43) en priorité, sinon dates d'en-tête
+    const hdrDate = toDate(H[dayCols[0]]);
+    let wk, wkFromName = /^\s*s(?:em(?:aine)?)?\s*(\d{1,2})\s*$/i.exec(sn);
+    if (wkFromName){
+      const w = +wkFromName[1]; let y = hdrDate ? isoWeek(hdrDate).y : new Date().getFullYear();
+      wk = weekKey(y, w);
+      if (hdrDate){ const hw = isoWeek(hdrDate); if (hw.w !== w) notes.push(`Onglet « ${sn} » : les dates d'en-tête (${fdate(hdrDate)}…) sont celles de la S${hw.w} ; c'est le nom de l'onglet qui est retenu.`); }
+    } else if (hdrDate){ const r = isoWeek(hdrDate); wk = weekKey(r.y, r.w); }
+    else { skipped.push(sn); continue; }
+    const rows = [];
+    let client = null;
+    for (let r = hi+1; r < grid.length; r++){
+      const R = grid[r] || [];
+      const name = clean(R[nameCol]);
+      if (/^totaux?\b/i.test(name)) break;
+      if (!name) continue;
+      const days = dayCols.map(c => toNum(R[c]));
+      const hasDays = days.some(v => v != null);
+      const cand = cCand >= 0 ? clean(R[cCand]) : '';
+      const met = cMet >= 0 ? clean(R[cMet]) : '';
+      if (!cand && !hasDays && !met){        // ligne client
+        client = {name, inclus: cCli >= 0 && hasOne(R[cCli])};
+        rows.push({type:'client', client:name, inclus:client.inclus});
+        continue;
+      }
+      const total = days.reduce((s,v) => s + (v||0), 0);
+      const fileTot = cTot >= 0 ? toNum(R[cTot]) : null;
+      rows.push({type:'int', client: client ? client.name : '(sans client)', inclus: client ? client.inclus : false,
+        nom: name, metier: met, contrat: cCtr>=0 ? clean(R[cCtr]) : '', vm: cVm>=0 ? clean(R[cVm]) : '', commentaire: cCom>=0 ? clean(R[cCom]) : '',
+        candidat: toNum(R[cCand]), debut: cDeb>=0 ? toDate(R[cDeb]) : null, fin: cFin>=0 ? toDate(R[cFin]) : null,
+        days, total, fileTot});
+    }
+    weeks.push({sheet: sn, week: wk, agence, rows});
+  }
+  return {weeks, skipped, notes};
+}
+
+/* =================== état =================== */
+let datasets = [];            // {name, mtime, weeks, skipped, notes, error}
+let F = {week:'', agence:'', client:'', metier:'', q:''};
+let showExcl = false;
+
+// toutes les semaines connues (une semaine + agence présente dans plusieurs fichiers : le fichier le plus récent l'emporte)
+function allWeeks(){
+  const best = new Map();
+  for (const d of [...datasets].sort((a,b)=>(a.mtime||0)-(b.mtime||0)))
+    for (const w of (d.weeks||[])) best.set(w.agence+'|'+w.week, {...w, fichier:d.name});
+  return [...best.values()];
+}
+function weekRows(week, agence){
+  const out = [];
+  for (const w of allWeeks()) if (w.week === week && (!agence || w.agence === agence)) for (const r of w.rows) out.push({...r, agence:w.agence, week:w.week});
+  return out;
+}
+const uniqSorted = (arr) => [...new Set(arr)].filter(Boolean).sort((a,b)=>a.localeCompare(b,'fr'));
+
+/* =================== rendu =================== */
+function fillSelect(sel, values, cur, all, labelFn){
+  sel.innerHTML = (all!=null?`<option value="">${all}</option>`:'') + values.map(v=>`<option value="${esc(v)}" ${v===cur?'selected':''}>${esc(labelFn?labelFn(v):v)}</option>`).join('');
+}
+function currentWeekKey(){ const r = isoWeek(new Date()); return weekKey(r.y, r.w); }
+
+function render(){
+  const W = allWeeks();
+  const weeks = uniqSorted(W.map(w=>w.week)).reverse();
+  const agences = uniqSorted(W.map(w=>w.agence));
+  if (!weeks.includes(F.week)) F.week = weeks.includes(currentWeekKey()) ? currentWeekKey() : (weeks[0] || '');
+  fillSelect($('fWeek'), weeks, F.week, null, k=>weekLabel(k,true));
+  $('agWrap').style.display = agences.length > 1 ? '' : 'none';
+  if (!agences.includes(F.agence)) F.agence = '';
+  fillSelect($('fAgence'), agences, F.agence, 'Toutes');
+  const wr = F.week ? weekRows(F.week, F.agence) : [];
+  const ints = wr.filter(r => r.type==='int' && (showExcl || r.inclus));
+  fillSelect($('fClient'), uniqSorted(ints.map(r=>r.client)), F.client, 'Tous');
+  fillSelect($('fMetier'), uniqSorted(ints.map(r=>r.metier)), F.metier, 'Tous');
+  $('prevW').disabled = !F.week || weeks.indexOf(F.week) >= weeks.length-1;
+  $('nextW').disabled = !F.week || weeks.indexOf(F.week) <= 0;
+
+  // fichiers
+  $('files').innerHTML = datasets.length ? datasets.map(d=>{
+    const ws = (d.weeks||[]).map(w=>weekLabel(w.week)).join(', ');
+    return `<span class="chip ${d.error?'err':''}" title="${esc(d.error || ((d.skipped||[]).length ? 'Onglets ignorés (pas au format planning hebdo) : '+d.skipped.join(', ') : ''))}">${esc(d.name)} <span class="muted">(${d.error ? '⚠ '+esc(d.error) : ws || 'aucune semaine'})</span></span>`;
+  }).join('') : `<span class="muted">${(dirHandle||snapshotFiles)?'Aucun planning Excel dans ce dossier pour l\'instant.':'Aucun fichier. Choisis le dossier des plannings ou ajoute un fichier Excel.'}</span>`;
+  $('subtitle').textContent = W.length ? `${agences.join(', ')} · ${weeks.length} semaine(s) : ${weeks.slice().reverse().map(k=>weekLabel(k)).join(', ')}` : 'Import des plannings hebdomadaires Excel';
+  $('title').textContent = 'Planning des intérimaires' + (F.agence ? ' — ' + F.agence : agences.length === 1 ? ' — ' + agences[0] : '');
+  $('printScope').textContent = `${F.week ? weekLabel(F.week,true) : ''}${F.client?' · '+F.client:''}${F.metier?' · '+F.metier:''} · édité le ${new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}`;
+
+  if (!F.week){ $('main').innerHTML = '<div class="card empty">Ajoute un planning Excel (onglets hebdomadaires S42, S43…) pour afficher le planning.</div>'; return; }
+  renderMain(wr);
+}
+
+function rowVisible(r){
+  if (r.type !== 'int') return false;
+  if (!showExcl && !r.inclus) return false;
+  if (F.client && r.client !== F.client) return false;
+  if (F.metier && r.metier !== F.metier) return false;
+  if (F.q){ const s = [r.nom, r.metier, r.client, r.commentaire, r.contrat, r.vm].join(' ').toLowerCase(); if (!s.includes(F.q)) return false; }
+  return true;
+}
+function finStatus(r, days){
+  if (!r.fin) return null;
+  if (r.fin < days[0]) return {cls:'late', txt:'fin dépassée'};
+  if (r.fin <= days[6]) return {cls:'warn', txt:'fin cette semaine'};
+  return null;
+}
+
+function renderMain(wr){
+  const days = weekDays(F.week);
+  const today = new Date();
+  const vis = wr.filter(rowVisible);
+  const excluded = uniqSorted(wr.filter(r => r.type==='client' && !r.inclus).map(r=>r.client));
+  const clients = [];
+  const byClient = new Map();
+  for (const r of vis){ if (!byClient.has(r.client)){ byClient.set(r.client, []); clients.push({name:r.client, inclus:r.inclus, agence:r.agence}); } byClient.get(r.client).push(r); }
+  const tot = vis.reduce((s,r)=>s+r.total,0);
+  const dayTot = days.map((_,i)=>vis.reduce((s,r)=>s+(r.days[i]||0),0));
+  const working = vis.filter(r=>r.total>0);
+  const fins = vis.filter(r=>{ const f = finStatus(r, days); return f && f.cls==='warn'; });
+  const late = vis.filter(r=>{ const f = finStatus(r, days); return f && f.cls==='late'; });
+  const mismatch = vis.filter(r => r.fileTot != null && Math.abs(r.fileTot - r.total) > 0.01);
+  const notes = [...new Set(datasets.flatMap(d=>d.notes||[]))];
+
+  let h = '';
+  // avertissements
+  const warn = [];
+  if (excluded.length && !showExcl) warn.push(`<b>${excluded.length} client(s) exclu(s)</b> (colonne « Client » sans 1) : ${excluded.map(esc).join(', ')}.`);
+  if (mismatch.length) warn.push(`<b>Écart avec le fichier</b> : la colonne « T He » ne correspond pas à la somme des jours pour ${mismatch.map(r=>`${esc(r.nom)} (${esc(r.client)} : fichier ${nf1.format(r.fileTot)} h, jours ${nf1.format(r.total)} h)`).join(', ')}. Les totaux affichés sont calculés à partir des jours.`);
+  for (const n of notes) warn.push(esc(n));
+  if (warn.length) h += `<div class="note">${warn.join('<br>')}</div>`;
+
+  // indicateurs
+  h += `<div class="kpis">
+    <div class="card kpi"><div class="v">${clients.length}</div><div class="l">Clients</div><div class="s">${excluded.length && !showExcl ? excluded.length+' exclu(s)' : '&nbsp;'}</div></div>
+    <div class="card kpi"><div class="v">${vis.length}</div><div class="l">Intérimaires planifiés</div><div class="s">${working.length} avec des heures</div></div>
+    <div class="card kpi"><div class="v">${nf1.format(tot)}</div><div class="l">Heures de la semaine</div><div class="s">moy. ${working.length?nf1.format(tot/working.length):0} h / intérimaire</div></div>
+    <div class="card kpi"><div class="v">${nf2.format(tot/HEBDO)}</div><div class="l">ETP</div><div class="s">heures / ${HEBDO} h</div></div>
+    <div class="card kpi ${fins.length?'warn':''}"><div class="v">${fins.length}</div><div class="l">Fins de contrat cette semaine</div><div class="s">${fins.slice(0,3).map(r=>esc(r.nom)).join(', ')}${fins.length>3?'…':''}</div></div>
+    <div class="card kpi ${late.length?'late':''}"><div class="v">${late.length}</div><div class="l">Fins de contrat dépassées</div><div class="s">fin avant le ${fdate(days[0])} : à renouveler ?</div></div>
+  </div>`;
+
+  // charge par jour
+  const maxD = Math.max(1, ...dayTot);
+  h += `<section class="card sec" id="daySec"><div class="sec-h"><div><h2>Heures planifiées par jour</h2><div class="sub">${weekLabel(F.week,true)}</div></div></div>
+    <div class="daysum">${days.map((d,i)=>`<div class="ds ${i>=5?'we':''}"><div class="v">${dayTot[i]?nf1.format(dayTot[i])+' h':'—'}</div><div class="bar" style="height:${dayTot[i]/maxD*78}%"></div><div class="l" ${sameDay(d,today)?'style="color:var(--accent);font-weight:650"':''}>${JOURS[i]} ${d.getDate()}/${String(d.getMonth()+1).padStart(2,'0')}</div></div>`).join('')}</div></section>`;
+
+  // planning par client
+  h += `<div class="sec-h"><div><h2>Intérimaires par client</h2><div class="sub">${clients.length} client(s) · ${vis.length} intérimaire(s) · ${hfmt(tot)}</div></div></div>`;
+  if (!clients.length) h += `<div class="card empty">Aucun intérimaire ne correspond aux filtres.</div>`;
+  const colg = `<colgroup><col style="width:15%"><col style="width:12%"><col style="width:5%"><col style="width:11%"><col style="width:7%"><col style="width:10%">${days.map(()=>'<col style="width:4.4%">').join('')}<col style="width:6%"><col style="width:5%"></colgroup>`;
+  const head = `<thead><tr><th>Intérimaire</th><th>Métier</th><th>Contrat</th><th>VM / commentaire</th><th>Début</th><th>Fin</th>${days.map((d,i)=>`<th class="d" ${sameDay(d,today)?'style="color:var(--accent)"':''}>${JOURS[i]}<br><span class="muted" style="font-weight:400">${d.getDate()}/${String(d.getMonth()+1).padStart(2,'0')}</span></th>`).join('')}<th class="n">Total</th><th class="n">ETP</th></tr></thead>`;
+  for (const c of clients){
+    const rs = byClient.get(c.name);
+    const ct = rs.reduce((s,r)=>s+r.total,0);
+    const cAlerts = rs.filter(r=>finStatus(r,days)).length;
+    h += `<section class="card client ${c.inclus?'':'excl'}">
+      <div class="client-h"><div class="name">${esc(c.name)} ${c.inclus?'':'<span class="badge mute">exclu (sans 1)</span>'}${F.agence||$('agWrap').style.display==='none'?'':` <span class="badge mute">${esc(c.agence)}</span>`}</div>
+        <div class="stats"><span><b>${rs.length}</b> intérimaire(s)</span><span><b>${nf1.format(ct)}</b> h</span><span><b>${nf2.format(ct/HEBDO)}</b> ETP</span>${cAlerts?`<span class="badge warn">${cAlerts} contrat(s) à surveiller</span>`:''}</div></div>
+      <table class="pl">${colg}${head}<tbody>${rs.map(r=>{
+        const fs = finStatus(r, days);
+        const vmc = [r.vm, r.commentaire].filter(Boolean).join(' · ');
+        const cells = r.days.map((v,i)=>`<td class="d">${v==null?'<span class="hc off">·</span>':v===0?'<span class="hc off">0</span>':`<span class="hc ${v>=9?'big':'on'}">${nf1.format(v)}</span>`}</td>`).join('');
+        const mobileDays = `<td class="days">${r.days.map((v,i)=>v?`<span class="hc ${v>=9?'big':'on'}" title="${JOURS[i]}">${JOURS[i][0]} ${nf1.format(v)}</span>`:'').join('') || '<span class="muted">aucune heure</span>'}</td>`;
+        const diff = r.fileTot != null && Math.abs(r.fileTot - r.total) > 0.01 ? `<div class="fileWarn">fichier : ${nf1.format(r.fileTot)} h</div>` : '';
+        return `<tr><td data-l="Intérimaire"><span class="nm">${esc(r.nom)}</span></td><td data-l="Métier" class="small">${esc(r.metier)}</td><td data-l="Contrat" class="small">${esc(r.contrat)}</td>
+          <td data-l="VM / commentaire" class="small">${esc(vmc)}</td><td data-l="Début" class="small">${fdate(r.debut)}</td>
+          <td data-l="Fin" class="small">${fdate(r.fin)}${fs?`<br><span class="badge ${fs.cls}">${fs.txt}</span>`:''}</td>
+          ${cells}${mobileDays}<td class="n" data-l="Total"><b>${nf1.format(r.total)}</b>${diff}</td><td class="n" data-l="ETP">${nf2.format(r.total/HEBDO)}</td></tr>`;
+      }).join('')}</tbody></table></section>`;
+  }
+
+  // évolution par semaine
+  const W = allWeeks().filter(w => !F.agence || w.agence === F.agence);
+  const wks = uniqSorted(W.map(w=>w.week));
+  if (wks.length > 1){
+    const per = new Map();   // client -> week -> heures
+    const nbInt = {};
+    for (const w of W) for (const r of w.rows){
+      if (r.type!=='int' || (!showExcl && !r.inclus) || (F.client && r.client!==F.client) || (F.metier && r.metier!==F.metier)) continue;
+      if (!per.has(r.client)) per.set(r.client, {});
+      per.get(r.client)[w.week] = (per.get(r.client)[w.week]||0) + r.total;
+      nbInt[w.week] = (nbInt[w.week]||0) + 1;
+    }
+    const names = [...per.keys()].sort((a,b)=>a.localeCompare(b,'fr'));
+    const colW = Math.max(7, Math.min(12, 60/wks.length));
+    h += `<section class="card sec" id="evoSec" style="margin-top:16px"><div class="sec-h"><div><h2>Évolution des heures par semaine</h2><div class="sub">Heures planifiées par client (clients avec 1${showExcl?' et exclus':''})</div></div></div>
+      <table class="evo"><colgroup><col style="width:${100-colW*wks.length}%">${wks.map(()=>`<col style="width:${colW}%">`).join('')}</colgroup>
+      <thead><tr><th>Client</th>${wks.map(k=>`<th class="${k===F.week?'cur':''}">${weekLabel(k)}</th>`).join('')}</tr></thead>
+      <tbody>${names.map(n=>`<tr><td>${esc(n)}</td>${wks.map(k=>{ const v = per.get(n)[k]; return `<td class="${k===F.week?'cur':''}">${v==null?'<span class="muted">—</span>':nf1.format(v)}</td>`; }).join('')}</tr>`).join('')}</tbody>
+      <tfoot><tr><td>Total heures</td>${wks.map(k=>`<td class="${k===F.week?'cur':''}">${nf1.format(names.reduce((s,n)=>s+(per.get(n)[k]||0),0))}</td>`).join('')}</tr>
+        <tr><td>ETP</td>${wks.map(k=>`<td class="${k===F.week?'cur':''}">${nf2.format(names.reduce((s,n)=>s+(per.get(n)[k]||0),0)/HEBDO)}</td>`).join('')}</tr>
+        <tr><td>Intérimaires</td>${wks.map(k=>`<td class="${k===F.week?'cur':''}">${nbInt[k]||0}</td>`).join('')}</tr></tfoot></table></section>`;
+  }
+  $('main').innerHTML = h;
+}
+
+/* =================== surveillance du dossier =================== */
+const FS_OK = 'showDirectoryPicker' in window;
+const EXT = /\.(xlsx|xlsm|xls)$/i;
+const cache = new Map(), manual = new Map();
+let dirHandle = null, snapshotFiles = null, syncing = false, lastSig = '', lastChange = '';
+function idb(){ return new Promise((ok,ko)=>{ const r = indexedDB.open('stats-commerciales',1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => ok(r.result); r.onerror = () => ko(r.error); }); }
+async function kvSet(k,v){ try{ const db = await idb(); await new Promise((ok,ko)=>{ const t=db.transaction('kv','readwrite'); t.objectStore('kv').put(v,k); t.oncomplete=ok; t.onerror=()=>ko(t.error); }); }catch(e){} }
+async function kvGet(k){ try{ const db = await idb(); return await new Promise((ok,ko)=>{ const r=db.transaction('kv').objectStore('kv').get(k); r.onsuccess=()=>ok(r.result); r.onerror=()=>ko(r.error); }); }catch(e){ return null; } }
+async function listFolder(dir, prefix='', out=[]){
+  for await (const [name, h] of dir.entries()){
+    if (name.startsWith('~$') || name.startsWith('.')) continue;
+    if (h.kind === 'directory') await listFolder(h, prefix+name+'/', out);
+    else if (EXT.test(name)) out.push({name: prefix+name, handle: h});
+  }
+  return out;
+}
+async function currentEntries(){
+  if (dirHandle){
+    const out = [];
+    for (const e of await listFolder(dirHandle)){
+      try{ const f = await e.handle.getFile(); out.push({name:e.name, mtime:f.lastModified, size:f.size, file:f}); }
+      catch(err){ out.push({name:e.name, mtime:0, size:-1, file:null}); }
+    }
+    return out;
+  }
+  if (snapshotFiles) return snapshotFiles.filter(f=>EXT.test(f.name) && !f.name.startsWith('~$')).map(f=>({name:f.webkitRelativePath.split('/').slice(1).join('/')||f.name, mtime:f.lastModified, size:f.size, file:f}));
+  return [];
+}
+async function sync(){
+  if (syncing) return; syncing = true;
+  try{
+    const entries = await currentEntries();
+    for (const [n,f] of manual) entries.push({name:'(ajouté) '+n, mtime:f.lastModified, size:f.size, file:f});
+    const sig = entries.map(f=>f.name+':'+f.mtime+':'+f.size).join('|');
+    if (sig !== lastSig){
+      const names = new Set(entries.map(f=>f.name)); let retry = false, changed = 0;
+      for (const n of [...cache.keys()]) if (!names.has(n)){ cache.delete(n); changed++; }
+      for (const f of entries){
+        const fsig = f.mtime+':'+f.size, prev = cache.get(f.name);
+        if (prev && prev.sig === fsig) continue;
+        const wasRetry = prev && prev.sig === 'retry';
+        try{
+          if (!f.file) throw new Error('illisible');
+          const res = parsePlanning(new Uint8Array(await f.file.arrayBuffer()), f.name.replace(/^\(ajouté\) /,''));
+          cache.set(f.name, {sig:fsig, mtime:f.mtime, ...res, error: res.weeks.length ? '' : 'aucun onglet de planning hebdo reconnu'});
+          changed++;
+        }catch(e){ retry = true; cache.set(f.name, {sig:'retry', mtime:f.mtime, weeks: prev?prev.weeks:[], error:'illisible pour l\'instant (fichier ouvert dans Excel ?)'}); if (!wasRetry) changed++; }
+      }
+      if (!retry) lastSig = sig;
+      datasets = [...cache].sort((a,b)=>a[0].localeCompare(b[0],'fr')).map(([name,c])=>({name, ...c}));
+      if (changed){ lastChange = `dernier changement à ${new Date().toLocaleTimeString('fr-FR')}`; render(); }
+    }
+    setLive(dirHandle ? 'ok' : snapshotFiles ? 'snap' : (manual.size ? 'manual' : 'none'));
+  }catch(e){ setLive('lost'); }
+  finally{ syncing = false; }
+}
+function setLive(state){
+  const dot = $('liveDot'), txt = $('liveTxt');
+  $('pickBtn').textContent = (dirHandle || snapshotFiles) ? 'Changer de dossier' : 'Choisir le dossier des plannings';
+  $('refreshBtn').hidden = state !== 'snap';
+  $('reconnectBtn').hidden = state !== 'reconnect';
+  if (state==='ok'){ dot.className='dot ok'; txt.textContent = `Mise à jour automatique active · vérifié à ${new Date().toLocaleTimeString('fr-FR')}` + (lastChange?' · '+lastChange:''); }
+  else if (state==='snap'){ dot.className='dot'; txt.textContent = 'Ce navigateur ne surveille pas les dossiers : clique sur « Actualiser » après une mise à jour (ou utilise Edge / Chrome).'; }
+  else if (state==='reconnect'){ dot.className='dot'; txt.textContent = 'Clique sur « Reprendre la surveillance » pour réautoriser l\'accès au dossier.'; }
+  else if (state==='lost'){ dot.className='dot ko'; txt.textContent = 'Le dossier n\'est plus accessible. Choisis-le à nouveau.'; dirHandle = null; }
+  else if (state==='manual'){ dot.className='dot'; txt.textContent = 'Fichier ajouté à la main (non surveillé). Choisis le dossier pour suivre les mises à jour du planning automatiquement.'; }
+  else { dot.className='dot'; txt.textContent = 'Choisis le dossier qui contient le planning Excel (onglets S42, S43…) : la page se mettra à jour à chaque enregistrement du fichier.'; }
+}
+async function pickFolder(){
+  if (!FS_OK){ $('dirInput').click(); return; }
+  try{
+    const h = await window.showDirectoryPicker({id:'planning', mode:'read'});
+    dirHandle = h; snapshotFiles = null; lastSig=''; cache.clear(); $('folder').textContent = h.name; kvSet('dir-planning', h); sync();
+  }catch(e){ if (e.name !== 'AbortError'){ $('liveTxt').textContent = 'Accès au dossier refusé : ' + e.message; $('liveDot').className = 'dot ko'; } }
+}
+async function reconnect(){
+  const h = await kvGet('dir-planning'); if (!h) return pickFolder();
+  try{ if (await h.requestPermission({mode:'read'}) === 'granted'){ dirHandle = h; $('folder').textContent = h.name; lastSig=''; sync(); } }catch(e){ pickFolder(); }
+}
+async function restoreFolder(){
+  if (!FS_OK){ setLive('none'); return; }
+  const h = await kvGet('dir-planning'); if (!h){ setLive('none'); return; }
+  $('folder').textContent = h.name;
+  let perm = 'prompt'; try{ perm = await h.queryPermission({mode:'read'}); }catch(e){}
+  if (perm === 'granted'){ dirHandle = h; sync(); } else setLive('reconnect');
+}
+function addFiles(files){ for (const f of files) manual.set(f.name, f); lastSig=''; sync(); }
+
+/* =================== événements =================== */
+$('fWeek').onchange = e => { F.week = e.target.value; F.client=''; render(); };
+$('fAgence').onchange = e => { F.agence = e.target.value; F.client=''; render(); };
+$('fClient').onchange = e => { F.client = e.target.value; render(); };
+$('fMetier').onchange = e => { F.metier = e.target.value; render(); };
+$('search').addEventListener('input', e => { F.q = e.target.value.trim().toLowerCase(); render(); });
+$('showExcl').checked = showExcl = lsGet('planning-excl', false);
+$('showExcl').onchange = e => { showExcl = e.target.checked; lsSet('planning-excl', showExcl); render(); };
+$('prevW').onclick = () => { const ws = [...$('fWeek').options].map(o=>o.value); const i = ws.indexOf(F.week); if (i < ws.length-1){ F.week = ws[i+1]; render(); } };
+$('nextW').onclick = () => { const ws = [...$('fWeek').options].map(o=>o.value); const i = ws.indexOf(F.week); if (i > 0){ F.week = ws[i-1]; render(); } };
+$('clearBtn').onclick = () => { F = {week:F.week, agence:'', client:'', metier:'', q:''}; $('search').value=''; render(); };
+$('pickBtn').onclick = pickFolder; $('reconnectBtn').onclick = reconnect;
+$('refreshBtn').onclick = () => $('dirInput').click();
+$('addBtn').onclick = () => $('fileInput').click();
+$('fileInput').onchange = e => { addFiles([...e.target.files]); e.target.value=''; };
+$('dirInput').onchange = e => { snapshotFiles = [...e.target.files]; dirHandle = null; lastSig=''; cache.clear(); $('folder').textContent = (snapshotFiles[0]?.webkitRelativePath||'').split('/')[0] || 'dossier'; e.target.value=''; sync(); };
+$('pdfBtn').onclick = () => { render(); setTimeout(() => window.print(), 50); };
+$('themeBtn').onclick = () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.dataset.theme = cur==='dark' ? 'light' : 'dark';
+  try{ localStorage.setItem('stats-theme', document.documentElement.dataset.theme); }catch(e){}
+};
+try{ const t = localStorage.getItem('stats-theme'); if (t) document.documentElement.dataset.theme = t; }catch(e){}
+const drop = $('drop');
+['dragenter','dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev==='drop' || !e.relatedTarget) drop.classList.remove('over'); }));
+document.addEventListener('drop', e => { const fs=[...e.dataTransfer.files].filter(f=>EXT.test(f.name)); if (fs.length) addFiles(fs); });
+
+render();
+restoreFolder();
+setInterval(() => { if (dirHandle) sync(); }, 2000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && dirHandle) sync(); });
+</script>
+</body>
+</html>
