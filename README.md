@@ -66,6 +66,17 @@ Lit le planning Excel de l'agence (ex. `Planning_agence_DAX.xlsx`) : chaque **on
   - Avec un dossier **SharePoint synchronisé par OneDrive**, la modification est synchronisée et apparaît chez les collègues qui surveillent le même dossier. Éviter d'éditer en même temps dans Excel et dans la page (OneDrive créerait une copie en conflit).
   - Ajouter ou supprimer un intérimaire / un client se fait toujours dans Excel.
 
+## Dossier SharePoint / OneDrive synchronisé
+
+Les trois outils peuvent surveiller un dossier synchronisé par OneDrive (bibliothèque SharePoint « Synchroniser » ou « Ajouter un raccourci à Mon OneDrive »). La surveillance est renforcée pour ce cas :
+
+- **Contenu relu toutes les 8 s** (empreinte du fichier) : une mise à jour est détectée même si OneDrive conserve la date et la taille du fichier. Les fichiers « disponibles en ligne uniquement » sont ainsi retéléchargés.
+- **Surveillance instantanée** quand le navigateur la propose (Chrome / Edge récents) : la page réagit dès qu'OneDrive dépose la nouvelle version.
+- **Relecture immédiate** quand on revient sur l'onglet (le navigateur ralentit les onglets en arrière-plan).
+- Sous la ligne d'état : **version la plus récente reçue** (fichier, heure d'enregistrement) — pour voir si c'est OneDrive qui n'a pas encore synchronisé — et bouton **« ↻ Relire maintenant »**.
+
+Le délai restant est celui d'OneDrive (téléversement chez le collègue puis téléchargement chez soi, quelques secondes à quelques minutes). Pour le réduire : activer l'**enregistrement automatique** dans Excel, choisir **« Toujours conserver sur cet appareil »** sur le dossier, et vérifier que l'icône OneDrive n'est pas en pause.
+
 ## Retirer un fichier
 
 Dans **Actions commerciales** et **Marges & ETP**, chaque fichier de la liste a un bouton **×** : un 1er clic demande confirmation (« Supprimer ? »), un 2e clic retire le fichier.
@@ -104,6 +115,7 @@ index.html                  l'application (HTML + CSS + JS, sans build)
 export-pptx.js              génération de la présentation PowerPoint (actions)
 marges.html                 l'outil Marges & ETP
 file-delete.js              retrait d'un fichier (vers _corbeille), commun aux deux premiers outils
+watch.js                    surveillance renforcée des dossiers synchronisés, commune aux trois outils
 planning.html               l'outil Planning
 export-marges-pptx.js       génération de la présentation PowerPoint (marges)
 vendor/xlsx.full.min.js     SheetJS Community Edition 0.18.5 (lecture des fichiers Excel, licence Apache-2.0)
