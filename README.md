@@ -10,6 +10,19 @@ Tableau de bord des actions commerciales **par agence et par commercial**, const
 2. Cliquer sur **« Choisir le dossier des exports »** et sélectionner le dossier où sont enregistrés les exports Excel, puis autoriser l'accès.
 3. C'est tout : dès qu'un export est **ajouté, modifié ou supprimé** dans ce dossier (sous-dossiers compris), les statistiques se mettent à jour toutes seules en ~2 secondes.
 
+### Semaines
+
+Chaque export correspond à **une semaine**. La semaine est lue dans le **nom du fichier** :
+
+| Nom du fichier | Semaine |
+|---|---|
+| `Export PAU S42.xlsx`, `Export 2026-S42.xlsx`, `pau_semaine_42.xlsx`, `Export W42.xlsx` | S42 |
+| `Export DAX 2026-10-12.xlsx`, `export_20261012.xlsx`, `Export 12-10-2026.xlsx` | semaine contenant cette date (S42) |
+
+Si le nom ne contient ni semaine ni date, la semaine est déduite de la **date d'enregistrement du fichier** (affichée avec un « ? » dans la liste des fichiers) : renommer le fichier pour la fixer.
+
+Un filtre **Semaine** et un graphique **Évolution par semaine** (cliquable) permettent de suivre l'activité semaine par semaine. Si deux fichiers de la **même semaine** contiennent la même ligne (export refait), elle n'est comptée qu'une fois.
+
 À la réouverture, le dossier est mémorisé ; selon le navigateur, un clic sur **« Reprendre la surveillance »** peut être demandé.
 
 > Firefox ne permet pas la surveillance d'un dossier : il peut lire les exports, mais il faut cliquer sur « Actualiser » après chaque nouvel export.
@@ -27,8 +40,9 @@ Tableau de bord des actions commerciales **par agence et par commercial**, const
 - Actions par commercial et par type d'action, avec détail par commercial (cibles suivies et actions menées)
 - Tableau triable par commercial, matrice commercial × type d'action, cibles les plus travaillées
 - Données détaillées avec recherche, tri et pagination ; export CSV de la vue filtrée
-- Filtres : agence, commercial, type de cible, type d'action, année
-- Gestion des exports qui se recouvrent : une même ligne présente dans plusieurs fichiers est comptée une seule fois (fichier le plus récent), ou additionnée au choix
+- Filtres : agence, commercial, type de cible, type d'action, semaine, année
+- Évolution par semaine (graphique cliquable)
+- Gestion des exports refaits : une même ligne présente dans plusieurs fichiers de la même semaine est comptée une seule fois (fichier le plus récent), ou additionnée au choix
 - Thème clair / sombre, affichage mobile
 
 ## Utilisation hors ligne

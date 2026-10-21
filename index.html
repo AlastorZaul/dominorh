@@ -48,7 +48,7 @@ button,select,input[type=search]{font:inherit;color:var(--text);background:var(-
 button{cursor:pointer}
 button:hover{background:var(--surface-2)}
 button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-select{min-width:150px}
+select{min-width:130px}
 label.f{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--text-2)}
 .drop{border:1.5px dashed var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;transition:.15s}
 .drop.over{border-color:var(--accent);background:var(--surface-2)}
@@ -112,6 +112,20 @@ tbody tr.sel td{background:var(--surface-2);font-weight:600}
 .tabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
 .tabs button.on{background:var(--text);color:var(--surface);border-color:var(--text)}
 .muted{color:var(--muted)}
+.weeks{display:flex;align-items:flex-end;gap:6px;height:190px;padding-top:6px}
+.wcol{flex:1 1 0;max-width:72px;min-width:0;height:100%;display:flex;flex-direction:column;cursor:pointer}
+.wplot{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-end}
+.wcol .wbar{display:flex;flex-direction:column;gap:2px;margin:0 auto;width:min(100%,40px)}
+.wcol .wbar span{min-height:2px}
+.wcol .wbar span:first-child{border-radius:4px 4px 0 0}
+.wcol .wbar span:last-child{border-radius:0}
+.wcol .wbar span:only-child{border-radius:4px 4px 0 0}
+.wcol .wv{text-align:center;font-size:12px;color:var(--text-2);font-variant-numeric:tabular-nums;margin-bottom:3px}
+.wcol .wl{text-align:center;font-size:12px;color:var(--text-2);border-top:1px solid var(--border);padding-top:4px;margin-top:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wcol:hover .wl,.wcol.sel .wl{color:var(--accent);font-weight:600}
+.wcol.dim{opacity:.35}
+.chip .wk{font-weight:600;color:var(--accent)}
+.chip .wk.guess{color:var(--text-2)}
 .h3{font-size:13px;font-weight:600;color:var(--text-2);margin:4px 0 8px;text-transform:uppercase;letter-spacing:.04em}
 .det-bars{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:6px 32px}
 .tags{display:flex;flex-wrap:wrap;gap:4px}
@@ -176,7 +190,7 @@ table.det td:last-child{min-width:200px}
       <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm" multiple hidden>
       <input type="file" id="dirInput" webkitdirectory multiple hidden>
       <label class="f">Lignes identiques dans plusieurs fichiers
-        <select id="dedupe"><option value="1">Compter une seule fois (fichier le plus récent)</option><option value="0">Additionner</option></select></label>
+        <select id="dedupe"><option value="1">Même semaine : compter une seule fois (fichier le plus récent)</option><option value="0">Additionner</option></select></label>
       <div class="row" style="align-self:flex-end;gap:8px">
         <button class="primary" id="reconnectBtn" hidden>Reprendre la surveillance</button>
         <button class="primary" id="pickBtn">Choisir le dossier des exports</button>
@@ -192,6 +206,7 @@ table.det td:last-child{min-width:200px}
       <label class="f">Commercial<select id="fCom"></select></label>
       <label class="f">Type de cible<select id="fType"></select></label>
       <label class="f">Type d'action<select id="fAction"></select></label>
+      <label class="f">Semaine<select id="fWeek"></select></label>
       <label class="f">Année<select id="fYear"></select></label>
       <button id="clearBtn" style="align-self:flex-end">Réinitialiser les filtres</button>
     </div>
@@ -202,6 +217,14 @@ table.det td:last-child{min-width:200px}
   <section class="sec">
     <div class="sec-h"><div><h2>Par agence</h2><div class="sub">Clique sur une agence pour filtrer</div></div></div>
     <div class="agencies" id="agencies"></div>
+  </section>
+
+  <section class="card sec" id="weekSec">
+    <div class="sec-h">
+      <div><h2>Évolution par semaine</h2><div class="sub">Clique sur une semaine pour filtrer</div></div>
+      <div class="legend"><span><i style="background:var(--s1)"></i>Candidat</span><span><i style="background:var(--s2)"></i>Client</span></div>
+    </div>
+    <div class="weeks" id="weekChart"></div>
   </section>
 
   <div class="grid2">
@@ -257,7 +280,7 @@ table.det td:last-child{min-width:200px}
 
 /* ---------- état ---------- */
 let datasets = [];          // {name, rows:[...]}
-let F = {agence:'', com:'', type:'', action:'', year:''};
+let F = {agence:'', com:'', type:'', action:'', year:'', week:''};
 let selCom = '';
 let sortKey = 'total', sortDir = -1;
 let topMode = 'Candidat';
@@ -310,6 +333,45 @@ function parseWorkbook(buf, name){
     }
   }
   return out;
+}
+
+/* ---------- semaines (un export = une semaine) ---------- */
+const MOIS = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+function isoWeek(date){
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = d.getUTCDay() || 7; d.setUTCDate(d.getUTCDate() + 4 - day);
+  const y = d.getUTCFullYear();
+  return {y, w: Math.ceil(((d - Date.UTC(y,0,1)) / 864e5 + 1) / 7)};
+}
+function weekMonday(y, w){
+  const j4 = new Date(Date.UTC(y,0,4)), day = j4.getUTCDay() || 7;
+  return new Date(Date.UTC(y, 0, 4 - day + 1 + (w-1)*7));
+}
+const weekKey = (y,w) => `${y}-S${String(w).padStart(2,'0')}`;
+function weekLabel(key, long){
+  const m = /^(\d{4})-S(\d{2})$/.exec(key||''); if (!m) return key||'';
+  const y = +m[1], w = +m[2], a = weekMonday(y,w), b = new Date(a.getTime() + 6*864e5);
+  const da = `${a.getUTCDate()}${a.getUTCMonth()!==b.getUTCMonth()?' '+MOIS[a.getUTCMonth()]:''}`;
+  const range = `${da} – ${b.getUTCDate()} ${MOIS[b.getUTCMonth()]}`;
+  return long ? `S${w} ${y} · ${range}` : `S${w}`;
+}
+// semaine d'un export : 1) « S42 », « semaine 42 », « W42 » dans le nom  2) une date dans le nom  3) date d'enregistrement du fichier
+function weekFromFile(name, mtime){
+  const s = name.replace(/^\(ajouté\) /,'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\.(xlsx|xlsm|xls)$/,'');
+  const yIn = (/(?:^|\D)(20\d{2})(?!\d)/.exec(s) || [])[1];
+  const fallbackY = new Date(mtime || Date.now()).getFullYear();
+  let m = /(?:^|[^a-z])(?:s|sem|semaine|w|wk|week)[ _.\-]?(\d{1,2})(?!\d)/.exec(s);
+  if (m && +m[1] >= 1 && +m[1] <= 53) return {key: weekKey(yIn ? +yIn : fallbackY, +m[1]), src:'nom'};
+  const ok = (y,mo,d) => mo>=1 && mo<=12 && d>=1 && d<=31;
+  m = /(?:^|\D)(20\d{2})[-_. ]?(\d{2})[-_. ]?(\d{2})(?!\d)/.exec(s);
+  if (m && ok(+m[1],+m[2],+m[3])){ const r = isoWeek(new Date(+m[1], +m[2]-1, +m[3])); return {key: weekKey(r.y,r.w), src:'nom'}; }
+  m = /(?:^|\D)(\d{1,2})[-_. ](\d{1,2})[-_. ](20\d{2}|\d{2})(?!\d)/.exec(s);
+  if (m && ok(0,+m[2],+m[1])){ const y = m[3].length===2 ? 2000 + +m[3] : +m[3]; const r = isoWeek(new Date(y, +m[2]-1, +m[1])); return {key: weekKey(r.y,r.w), src:'nom'}; }
+  const r = isoWeek(new Date(mtime || Date.now()));
+  return {key: weekKey(r.y,r.w), src:'date'};
+}
+function fillWeekSelect(sel, values, cur){
+  sel.innerHTML = `<option value="">Toutes</option>` + values.map(v=>`<option ${v===cur?'selected':''} value="${esc(v)}">${esc(weekLabel(v,true))}</option>`).join('');
 }
 
 /* ---------- surveillance du dossier, directement depuis le navigateur ---------- */
@@ -371,16 +433,18 @@ async function sync(){
         try{
           if (!f.file) throw new Error(f.err || 'fichier illisible');
           const rows = parseWorkbook(new Uint8Array(await f.file.arrayBuffer()), f.name);
-          cache.set(f.name, {sig:fsig, mtime:f.mtime, rows, error: rows.length ? '' : 'aucune donnée reconnue'});
+          const wk = weekFromFile(f.name, f.mtime);
+          for (const r of rows) r.semaine = wk.key;
+          cache.set(f.name, {sig:fsig, mtime:f.mtime, rows, week:wk, error: rows.length ? '' : 'aucune donnée reconnue'});
         }catch(e){
           retry = true;
-          cache.set(f.name, {sig:'retry', mtime:f.mtime, rows: prev ? prev.rows : [], error: 'illisible pour l\'instant (fichier ouvert ?)'});
+          cache.set(f.name, {sig:'retry', mtime:f.mtime, week: prev && prev.week, rows: prev ? prev.rows : [], error: 'illisible pour l\'instant (fichier ouvert ?)'});
         }
         (prev ? updated : added).push(f.name);
       }
       if (!retry) lastSig = sig;
       fresh = new Set([...added, ...updated]);
-      datasets = [...cache].sort((a,b)=>a[0].localeCompare(b[0],'fr')).map(([name,c])=>({name, mtime:c.mtime, rows:c.rows, error:c.error}));
+      datasets = [...cache].sort((a,b)=>a[0].localeCompare(b[0],'fr')).map(([name,c])=>({name, mtime:c.mtime, week:c.week, rows:c.rows, error:c.error}));
       render();
       const parts = [];
       if (added.length && cache.size !== added.length) parts.push(`${added.length} ajouté(s)`);
@@ -452,7 +516,7 @@ function allRows(){
   // même ligne (action, agence, commercial, type, cible, année) dans plusieurs fichiers : on garde la plus récente
   const best = new Map();
   for (const d of [...datasets].sort((a,b)=>(a.mtime||0)-(b.mtime||0)))
-    for (const r of d.rows) best.set([r.action,r.agence,r.commercial,r.type,r.cible,r.annee].join('\u0001'), r);
+    for (const r of d.rows) best.set([r.semaine,r.action,r.agence,r.commercial,r.type,r.cible,r.annee].join('\u0001'), r);
   return [...best.values()];
 }
 function filtered(except){
@@ -461,7 +525,8 @@ function filtered(except){
     (except==='com'    || !F.com    || r.commercial===F.com) &&
     (except==='type'   || !F.type   || r.type===F.type) &&
     (except==='action' || !F.action || r.action===F.action) &&
-    (except==='year'   || !F.year   || r.annee===F.year));
+    (except==='year'   || !F.year   || r.annee===F.year) &&
+    (except==='week'   || !F.week   || r.semaine===F.week));
 }
 function groupBy(rows, key){
   const m = new Map();
@@ -494,8 +559,8 @@ const uniq = (rows,k) => [...new Set(rows.map(r=>r[k]))].sort((a,b)=>a.localeCom
 
 function updateSubtitle(){
   const rows = allRows();
-  const years = uniq(rows,'annee');
-  $('subtitle').textContent = `${datasets.length} fichier(s) · ${fmt(sum(rows))} actions · ${years.join(', ')}`;
+  const years = uniq(rows,'annee'); const nbW = uniq(rows,'semaine').length;
+  $('subtitle').textContent = `${datasets.length} fichier(s) · ${nbW} semaine(s) · ${fmt(sum(rows))} actions · ${years.join(', ')}`;
 }
 
 function render(){
@@ -505,8 +570,9 @@ function render(){
   fillSelect($('fType'),   uniq(filtered('type'),'type'), F.type, 'Tous');
   fillSelect($('fAction'), uniq(filtered('action'),'action'), F.action, 'Toutes');
   fillSelect($('fYear'),   uniq(filtered('year'),'annee'), F.year, 'Toutes');
+  fillWeekSelect($('fWeek'), uniq(filtered('week'),'semaine').reverse(), F.week);
 
-  $('files').innerHTML = datasets.length ? datasets.map(d=>`<span class="chip ${d.error?'err':''} ${fresh.has(d.name)&&!d.error?'new':''}" style="padding-right:10px" title="${esc(d.error||'')}">${esc(d.name)} <span class="muted">(${d.error?'⚠ '+esc(d.error):fmt(sum(d.rows))+' actions'})</span></span>`).join('') : `<span class="muted">${(typeof dirHandle!=='undefined'&&(dirHandle||snapshotFiles))?'Aucun export Excel dans ce dossier pour l\'instant.':'Aucun dossier choisi.'}</span>`;
+  $('files').innerHTML = datasets.length ? datasets.map(d=>`<span class="chip ${d.error?'err':''} ${fresh.has(d.name)&&!d.error?'new':''}" style="padding-right:10px" title="${esc(d.error||'')}">${d.week?`<b class="wk ${d.week.src==='date'?'guess':''}" title="${d.week.src==='date'?'Semaine déduite de la date d\'enregistrement du fichier. Pour la fixer, mets-la dans le nom (ex. « Export S42.xlsx » ou « Export 2026-10-19.xlsx »).':'Semaine lue dans le nom du fichier'}">${esc(weekLabel(d.week.key))}${d.week.src==='date'?' ?':''}</b> `:''}${esc(d.name)} <span class="muted">(${d.error?'⚠ '+esc(d.error):fmt(sum(d.rows))+' actions'})</span></span>`).join('') : `<span class="muted">${(typeof dirHandle!=='undefined'&&(dirHandle||snapshotFiles))?'Aucun export Excel dans ce dossier pour l\'instant.':'Aucun dossier choisi.'}</span>`;
   fresh = new Set();
   updateSubtitle();
 
@@ -515,6 +581,7 @@ function render(){
   renderAgencies(filtered('agence'));
   renderComBars(rows);
   renderActBars(rows);
+  renderWeeks(filtered('week'));
   renderComTable(rows);
   renderHeat(rows);
   renderTop(rows);
@@ -579,6 +646,16 @@ function renderComBars(rows){
     .sort((a,b)=>b.t-a.t).map(x=>({...x,extra:`<br>Agence : ${esc(x.ag)}`}));
   stackedBars($('comBars'), g, x=>`${esc(x.k)} <span class="muted">· ${esc(x.ag)}</span>`, 'data-com', selCom);
 }
+function renderWeeks(rows){
+  const g = [...groupBy(rows,'semaine')].map(([k,v])=>({k,t:sum(v),c:sumType(v,'Candidat'),l:sumType(v,'Client')})).sort((a,b)=>a.k.localeCompare(b.k));
+  if (!g.length){ $('weekChart').innerHTML = '<div class="empty">Aucune donnée</div>'; return; }
+  const max = Math.max(1, ...g.map(x=>x.t));
+  $('weekChart').innerHTML = g.map(x=>`<div class="wcol ${F.week===x.k?'sel':''} ${F.week&&F.week!==x.k?'dim':''}" data-week="${esc(x.k)}"
+      data-tip="${esc(`<b>${weekLabel(x.k,true)}</b><br>Total : ${x.t}<br>Candidat : ${x.c}<br>Client : ${x.l}`)}">
+      <div class="wplot"><div class="wv">${fmt(x.t)}</div>
+      <div class="wbar" style="height:${Math.max(2, x.t/max*82)}%">${x.l?`<span style="flex:${x.l};background:var(--s2)"></span>`:''}${x.c?`<span style="flex:${x.c};background:var(--s1)"></span>`:''}</div></div>
+      <div class="wl">${esc(weekLabel(x.k))}</div></div>`).join('');
+}
 function renderActBars(rows){
   const g = [...groupBy(rows,'action')].map(([k,v])=>({k,t:sum(v),c:sumType(v,'Candidat'),l:sumType(v,'Client')})).sort((a,b)=>b.t-a.t);
   stackedBars($('actBars'), g, x=>esc(x.k), 'data-act', F.action);
@@ -642,11 +719,11 @@ function renderTop(rows){
 let rawPage = 1, rawSize = 25, rawSort = 'action', rawDir = 1;
 try{ rawSize = +localStorage.getItem('stats-rawsize') || 25; }catch(e){}
 const RAW_COLS = [
-  ['action','Type d\'action','22%'],['agence','Agence','8%'],['commercial','Commercial','15%'],
-  ['type','Type','9%'],['cible','Cible','32%'],['annee','Année','7%'],['n','Nb','7%','n']];
+  ['action','Type d\'action','21%'],['agence','Agence','8%'],['commercial','Commercial','15%'],
+  ['type','Type','9%'],['cible','Cible','30%'],['semaine','Semaine','9%'],['n','Nb','6%','n']];
 function renderRaw(rows){
   const q = $('search').value.trim().toLowerCase();
-  let r2 = q ? rows.filter(r=>[r.action,r.agence,r.commercial,r.type,r.cible,r.fichier].join(' ').toLowerCase().includes(q)) : rows.slice();
+  let r2 = q ? rows.filter(r=>[r.action,r.agence,r.commercial,r.type,r.cible,r.fichier,weekLabel(r.semaine,true)].join(' ').toLowerCase().includes(q)) : rows.slice();
   r2.sort((a,b)=>{ const x=a[rawSort], y=b[rawSort];
     const c = typeof x==='number' ? x-y : String(x).localeCompare(String(y),'fr');
     return c*rawDir || a.action.localeCompare(b.action,'fr') || a.cible.localeCompare(b.cible,'fr'); });
@@ -661,7 +738,7 @@ function renderRaw(rows){
     ${slice.map(r=>`<tr><td data-l="Action">${esc(r.action)}</td><td data-l="Agence">${esc(r.agence)}</td><td data-l="Commercial">${esc(r.commercial)}</td>
       <td data-l="Type"><span class="pill">${esc(r.type)}</span></td>
       <td data-l="Cible">${esc(r.cible)}${datasets.length>1?`<div class="fic">${esc(r.fichier)}</div>`:''}</td>
-      <td data-l="Année">${r.annee}</td><td class="n" data-l="Nb"><b>${r.n}</b></td></tr>`).join('')}</tbody></table>`
+      <td data-l="Semaine" title="${esc(weekLabel(r.semaine,true))}">${esc(weekLabel(r.semaine))} <span class="muted">${r.semaine?r.semaine.slice(0,4):r.annee}</span></td><td class="n" data-l="Nb"><b>${r.n}</b></td></tr>`).join('')}</tbody></table>`
     : '<div class="empty">Aucune ligne ne correspond</div>';
   // pagination
   let nums = [];
@@ -708,9 +785,9 @@ function renderDetail(){
 /* ---------- export CSV ---------- */
 function exportCsv(){
   const rows = filtered();
-  const head = ['Type d\'action','Agence','Commercial','Type','Cible','Année','Nombre','Fichier'];
+  const head = ['Semaine','Du','Type d\'action','Agence','Commercial','Type','Cible','Année','Nombre','Fichier'];
   const q = s => `"${String(s).replace(/"/g,'""')}"`;
-  const csv = '﻿' + [head, ...rows.map(r=>[r.action,r.agence,r.commercial,r.type,r.cible,r.annee,r.n,r.fichier])].map(l=>l.map(q).join(';')).join('\r\n');
+  const csv = '﻿' + [head, ...rows.map(r=>[weekLabel(r.semaine), r.semaine?weekMonday(+r.semaine.slice(0,4),+r.semaine.slice(6)).toISOString().slice(0,10):'', r.action,r.agence,r.commercial,r.type,r.cible,r.annee,r.n,r.fichier])].map(l=>l.map(q).join(';')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
   a.download = 'statistiques_filtrees.csv'; a.click();
@@ -718,8 +795,8 @@ function exportCsv(){
 
 /* ---------- événements ---------- */
 const bindF = (id,k) => $(id).addEventListener('change', e => { F[k] = e.target.value; render(); });
-bindF('fAgence','agence'); bindF('fCom','com'); bindF('fType','type'); bindF('fAction','action'); bindF('fYear','year');
-$('clearBtn').onclick = () => { F = {agence:'',com:'',type:'',action:'',year:''}; selCom=''; $('search').value=''; render(); };
+bindF('fAgence','agence'); bindF('fCom','com'); bindF('fType','type'); bindF('fAction','action'); bindF('fYear','year'); bindF('fWeek','week');
+$('clearBtn').onclick = () => { F = {agence:'',com:'',type:'',action:'',year:'',week:''}; selCom=''; $('search').value=''; render(); };
 $('search').addEventListener('input', () => { rawPage = 1; renderRaw(filtered()); });
 $('csvBtn').onclick = exportCsv;
 $('dedupe').value = dedupe ? '1' : '0';
@@ -744,6 +821,7 @@ document.addEventListener('click', e => {
   const th = e.target.closest('[data-sort]'); if (th){ const k=th.dataset.sort; if(sortKey===k) sortDir*=-1; else {sortKey=k; sortDir=(k==='commercial'||k==='agence'||k==='top')?1:-1;} render(); return; }
   const com = e.target.closest('[data-com]'); if (com){ selCom = selCom===com.dataset.com ? '' : com.dataset.com; render(); if(selCom) $('detail').scrollIntoView({behavior:'smooth',block:'nearest'}); return; }
   const act = e.target.closest('[data-act]'); if (act){ F.action = F.action===act.dataset.act ? '' : act.dataset.act; render(); return; }
+  const wk = e.target.closest('[data-week]'); if (wk){ F.week = F.week===wk.dataset.week ? '' : wk.dataset.week; render(); return; }
   const tp = e.target.closest('[data-top]'); if (tp){ topMode = tp.dataset.top; renderTop(filtered()); return; }
 });
 const drop = $('drop');
