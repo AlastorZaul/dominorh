@@ -1,6 +1,8 @@
 # Statistiques commerciales
 
-Deux outils, dans le navigateur, sans installation :
+👉 **Page d'accueil : https://alastorzaul.github.io/dominorh/accueil.html** — présentation des outils, mise en place du dossier SharePoint synchronisé, questions fréquentes, et adresses à mettre en lien depuis SharePoint (composant « Liens rapides »).
+
+Trois outils, dans le navigateur, sans installation :
 
 - **Actions commerciales** (`index.html`) — actions par agence, commercial, semaine (exports Excel)
 - **Marges & ETP** (`marges.html`) — CA, marge, ETP par dossier, commercial et agence (exports CSV de marges)
@@ -111,6 +113,7 @@ Télécharger le dépôt (**Code → Download ZIP**), le dézipper et ouvrir `in
 ## Structure
 
 ```
+accueil.html                page d'accueil (lien à mettre sur SharePoint)
 index.html                  l'application (HTML + CSS + JS, sans build)
 export-pptx.js              génération de la présentation PowerPoint (actions)
 marges.html                 l'outil Marges & ETP
