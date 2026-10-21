@@ -114,6 +114,11 @@ code{font:12px ui-monospace,Menlo,Consolas,monospace;word-break:break-all}
 .editor label{display:flex;gap:6px;align-items:center;font-size:13px}
 .editor input[type=checkbox]{width:16px;height:16px;padding:0}
 .empty{color:var(--muted);padding:18px;text-align:center}
+.msg{font-size:13px;color:var(--text-2)}
+.msg:empty{display:none}
+#groupsMsg{margin:-4px 0 10px}
+.msg.ok{color:#14865d}
+.msg.err{color:var(--neg);font-weight:600}
 .tip{position:fixed;pointer-events:none;background:var(--text);color:var(--surface);padding:7px 10px;border-radius:8px;font-size:12px;line-height:1.45;z-index:50;max-width:320px;opacity:0;transition:opacity .08s}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 @media (max-width:980px){.grid2{grid-template-columns:1fr}}
@@ -203,6 +208,7 @@ code{font:12px ui-monospace,Menlo,Consolas,monospace;word-break:break-all}
       <div><h2>Agences</h2><div class="sub">Une agence = l'addition de plusieurs commerciaux. Clique sur une agence pour filtrer.</div></div>
       <div class="row no-print" style="gap:8px"><button id="autoGroups" title="Crée une agence par fichier importé, avec ses commerciaux">Créer une agence par fichier</button><button class="primary" id="newGroup">+ Nouvelle agence</button></div>
     </div>
+    <div class="msg" id="groupsMsg" role="status" aria-live="polite"></div>
     <div id="editorBox"></div>
     <div class="groups" id="groups"></div>
   </section>
@@ -467,8 +473,15 @@ function renderEditor(){
     <div class="row"><label class="f" style="flex:1;min-width:220px">Nom de l'agence<input id="gName" value="${esc(editing.name)}" placeholder="ex. Pau"></label></div>
     <div class="sub" style="margin-top:10px">Commerciaux à additionner :</div>
     <div class="checks">${coms.map(c=>`<label><input type="checkbox" value="${esc(c)}" ${editing.members.includes(c)?'checked':''}> ${esc(c)} <span class="muted" style="font-size:11.5px">${info(c)}</span></label>`).join('') || '<span class="muted">Importe d\'abord un export.</span>'}</div>
-    <div class="row" style="gap:8px"><button class="primary" id="gSave">Enregistrer</button><button id="gCancel">Annuler</button></div></div>`;
-  $('gName').focus();
+    <div class="row" style="gap:8px"><button class="primary" id="gSave">Enregistrer l'agence</button><button id="gCancel">Annuler</button><span class="msg" id="gMsg"></span></div></div>`;
+  const inp = $('gName');
+  inp.addEventListener('input', () => { editing.name = inp.value; setMsg('gMsg',''); });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); saveEditor(); } });
+  box.querySelectorAll('.editor input[type=checkbox]').forEach(cb => cb.addEventListener('change', () => {
+    editing.members = [...box.querySelectorAll('.editor input[type=checkbox]:checked')].map(x => x.value); setMsg('gMsg','');
+  }));
+  box.scrollIntoView({block:'nearest', behavior:'smooth'});
+  inp.focus({preventScroll:true});
 }
 
 function renderBars(rows){
@@ -595,17 +608,20 @@ async function sync(){
       for (const f of entries){
         const fsig = f.mtime+':'+f.size, prev = cache.get(f.name);
         if (prev && prev.sig === fsig) continue;
-        changed++;
+        const wasRetry = prev && prev.sig === 'retry';
         try{
           if (!f.file) throw new Error('illisible');
           const res = parseMarges(await f.file.arrayBuffer(), f.name.replace(/^\(ajouté\) /,''));
           cache.set(f.name, {sig:fsig, mtime:f.mtime, rows:res.rows, error:res.error, skip:res.skip});
-        }catch(e){ retry = true; cache.set(f.name, {sig:'retry', mtime:f.mtime, rows: prev?prev.rows:[], error:'illisible pour l\'instant (fichier ouvert ?)'}); }
+          changed++;
+        }catch(e){ retry = true; cache.set(f.name, {sig:'retry', mtime:f.mtime, rows: prev?prev.rows:[], error:'illisible pour l\'instant (fichier ouvert dans Excel ?)'}); if (!wasRetry) changed++; }
       }
       if (!retry) lastSig = sig;
       datasets = [...cache].sort((a,b)=>a[0].localeCompare(b[0],'fr')).map(([name,c])=>({name, ...c}));
-      if (changed) lastChange = `dernier changement à ${new Date().toLocaleTimeString('fr-FR')}`;
-      render(); if (editing) renderEditor();
+      if (changed){
+        lastChange = `dernier changement à ${new Date().toLocaleTimeString('fr-FR')}`;
+        render(); if (editing) renderEditor();
+      }
     }
     setLive(dirHandle ? 'ok' : snapshotFiles ? 'snap' : (manual.size ? 'manual' : 'none'));
   }catch(e){ setLive('lost'); }
@@ -628,7 +644,7 @@ async function pickFolder(){
   try{
     const h = await window.showDirectoryPicker({id:'marges', mode:'read'});
     dirHandle = h; snapshotFiles = null; lastSig=''; cache.clear(); $('folder').textContent = h.name; kvSet('dir-marges', h); sync();
-  }catch(e){ if (e.name !== 'AbortError') alert('Accès au dossier refusé : ' + e.message); }
+  }catch(e){ if (e.name !== 'AbortError'){ $('liveTxt').textContent = 'Accès au dossier refusé : ' + e.message; $('liveDot').className = 'dot ko'; } }
 }
 async function reconnect(){
   const h = await kvGet('dir-marges'); if (!h) return pickFolder();
@@ -645,6 +661,20 @@ function addFiles(files){ for (const f of files) manual.set(f.name, f); lastSig=
 
 /* =================== agences =================== */
 function saveGroups(){ lsSet('marges-agences', groups); }
+function setMsg(id, txt, kind){ const el = $(id); if (!el) return; el.textContent = txt; el.className = 'msg' + (kind ? ' ' + kind : ''); }
+let msgTimer = null;
+function groupsMsg(txt, kind){ setMsg('groupsMsg', txt, kind); clearTimeout(msgTimer); if (txt) msgTimer = setTimeout(() => setMsg('groupsMsg',''), 6000); }
+function saveEditor(){
+  const name = ($('gName').value || '').trim();
+  const members = [...document.querySelectorAll('.editor input[type=checkbox]:checked')].map(x=>x.value);
+  if (!name){ setMsg('gMsg', 'Donne un nom à l\'agence.', 'err'); $('gName').focus(); return; }
+  if (!members.length){ setMsg('gMsg', allRows().length ? 'Coche au moins un commercial.' : 'Importe d\'abord un export de marges pour choisir les commerciaux.', 'err'); return; }
+  const isNew = !editing.id;
+  if (editing.id){ const g = groupById(editing.id); g.name = name; g.members = members; }
+  else groups.push({id:'g'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), name, members});
+  saveGroups(); editing = null; renderEditor(); render();
+  groupsMsg(isNew ? `Agence « ${name} » créée (${members.length} commercial(aux)).` : `Agence « ${name} » mise à jour.`, 'ok');
+}
 function autoGroups(){
   const created = [];
   for (const d of datasets.filter(d=>d.rows.length)){
@@ -656,8 +686,10 @@ function autoGroups(){
     if (groups.some(g => g.members.slice().sort().join('|') === members.slice().sort().join('|'))) continue;
     created.push({id:'g'+Date.now().toString(36)+created.length, name, members, source: base});
   }
-  if (!created.length){ alert('Toutes les combinaisons de commerciaux des fichiers existent déjà en agence.'); return; }
+  if (!datasets.some(d=>d.rows.length)){ groupsMsg('Importe d\'abord un export de marges.', 'err'); return; }
+  if (!created.length){ groupsMsg('Ces agences existent déjà (mêmes commerciaux).', 'err'); return; }
   groups = groups.concat(created); saveGroups(); render();
+  groupsMsg(`${created.length} agence(s) créée(s) — clique sur « Modifier » pour les renommer.`, 'ok');
 }
 
 /* =================== événements =================== */
@@ -673,7 +705,7 @@ $('refreshBtn').onclick = () => $('dirInput').click();
 $('addBtn').onclick = () => $('fileInput').click();
 $('fileInput').onchange = e => { addFiles([...e.target.files]); e.target.value=''; };
 $('dirInput').onchange = e => { snapshotFiles = [...e.target.files]; dirHandle = null; lastSig=''; cache.clear(); $('folder').textContent = (snapshotFiles[0]?.webkitRelativePath||'').split('/')[0] || 'dossier'; e.target.value=''; sync(); };
-$('newGroup').onclick = () => { editing = {id:null, name:'', members: F.com ? [F.com] : []}; renderEditor(); };
+$('newGroup').onclick = () => { editing = {id:null, name:'', members: F.com ? [F.com] : []}; renderEditor(); groupsMsg(''); };
 $('autoGroups').onclick = autoGroups;
 $('pdfBtn').onclick = () => { render(); setTimeout(() => window.print(), 50); };
 $('pptxBtn').onclick = () => window.exportMargesPptx && window.exportMargesPptx();
@@ -687,17 +719,12 @@ try{ const t = localStorage.getItem('stats-theme'); if (t) document.documentElem
 document.addEventListener('click', e => {
   const t = e.target;
   if (t.id === 'gCancel'){ editing = null; renderEditor(); return; }
-  if (t.id === 'gSave'){
-    const name = $('gName').value.trim();
-    const members = [...document.querySelectorAll('.editor input[type=checkbox]:checked')].map(x=>x.value);
-    if (!name){ $('gName').focus(); return; }
-    if (!members.length){ alert('Coche au moins un commercial.'); return; }
-    if (editing.id){ const g = groupById(editing.id); g.name = name; g.members = members; }
-    else groups.push({id:'g'+Date.now().toString(36), name, members});
-    saveGroups(); editing = null; renderEditor(); render(); return;
-  }
+  if (t.id === 'gSave'){ saveEditor(); return; }
   const ge = t.closest('[data-gedit]'); if (ge){ e.stopPropagation(); const g = groupById(ge.dataset.gedit); editing = {id:g.id, name:g.name, members:[...g.members]}; renderEditor(); $('editorBox').scrollIntoView({block:'nearest'}); return; }
-  const gd = t.closest('[data-gdel]'); if (gd){ const g = groupById(gd.dataset.gdel); if (confirm(`Supprimer l'agence « ${g.name} » ? (les données ne sont pas touchées)`)){ groups = groups.filter(x=>x.id!==g.id); if (F.groupe===g.id) F.groupe=''; saveGroups(); render(); } return; }
+  const gd = t.closest('[data-gdel]'); if (gd){
+    const g = groupById(gd.dataset.gdel);
+    if (gd.dataset.armed !== '1'){ gd.dataset.armed = '1'; gd.textContent = 'Confirmer la suppression'; setTimeout(() => { if (gd.isConnected){ gd.dataset.armed = ''; gd.textContent = 'Supprimer'; } }, 4000); return; }
+    groups = groups.filter(x=>x.id!==g.id); if (F.groupe===g.id) F.groupe=''; saveGroups(); render(); groupsMsg(`Agence « ${g.name} » supprimée.`, 'ok'); return; }
   const gr = t.closest('[data-grp]'); if (gr){ F.groupe = F.groupe===gr.dataset.grp ? '' : gr.dataset.grp; render(); return; }
   const dm = t.closest('[data-dim]'); if (dm){ dim = dm.dataset.dim; lsSet('marges-dim', dim); showAll=false; render(); return; }
   const mt = t.closest('[data-metric]'); if (mt){ metric = mt.dataset.metric; lsSet('marges-metric', metric); sortKey='metric'; sortDir=-1; render(); return; }

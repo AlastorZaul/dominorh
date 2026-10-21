@@ -62,7 +62,7 @@
 
   async function build() {
     const rows = filtered();
-    if (!rows.length) { alert('Aucune donnée à exporter avec les filtres actuels.'); return; }
+    if (!rows.length) { const b = document.getElementById('pptxBtn'); b.textContent = 'Aucune donnée à exporter'; setTimeout(() => b.textContent = 'Exporter en présentation (.pptx)', 3000); return 'vide'; }
     const pptx = new PptxGenJS();
     pptx.layout = 'LAYOUT_WIDE';
     pptx.title = 'Marges et ETP';
@@ -134,7 +134,7 @@
   window.exportMargesPptx = async function () {
     const btn = document.getElementById('pptxBtn'), label = btn.textContent;
     btn.disabled = true; btn.textContent = 'Génération…';
-    try { await build(); } catch (e) { console.error(e); alert('Impossible de générer la présentation : ' + e.message); }
-    finally { btn.disabled = false; btn.textContent = label; }
+    let res; try { res = await build(); } catch (e) { console.error(e); btn.textContent = 'Erreur : ' + e.message; setTimeout(() => btn.textContent = label, 5000); btn.disabled = false; return; }
+    btn.disabled = false; if (res !== 'vide') btn.textContent = label;
   };
 })();
